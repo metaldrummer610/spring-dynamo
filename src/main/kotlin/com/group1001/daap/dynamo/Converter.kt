@@ -2,7 +2,6 @@ package com.group1001.daap.dynamo
 
 import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
-import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -54,9 +53,6 @@ abstract class BaseConverter<FROM : Any>(private val fromClass: KClass<FROM>) : 
     override fun supports(klass: Type): Boolean = when (klass) {
         // This is done so that we can support boxed and unboxed primitives
         fromClass.javaObjectType, fromClass.javaPrimitiveType -> true
-
-        // This allows us to check the inner types of typed classes (eg List or Map)
-        is ParameterizedType -> klass.actualTypeArguments.contains(fromClass.java)
         else -> false
     }
 }

@@ -13,12 +13,19 @@ val dbClient: DynamoDbClient = DynamoDbClient.builder()
     .region(Region.US_EAST_1)
     .build()
 
-val testEntity = TestEntity(
-    UUID.randomUUID(),
-    LocalDate.now(),
+fun testEntity(
+    id: UUID = UUID.randomUUID(),
+    localDate: LocalDate = LocalDate.now(),
+    nullable: String? = null,
+    mapping: Map<String, TestAddress> = emptyMap()
+) = TestEntity(
+    id,
+    localDate,
     listOf("foo", "bar"),
     listOf(TestAddress("123"), TestAddress("234")),
-    12345
+    12345,
+    nullable,
+    mapping
 )
 
 fun setupDB() {
@@ -42,6 +49,8 @@ data class TestEntity(
     val mapping: Map<String, TestAddress> = emptyMap()
 ) {
     constructor() : this(UUID.randomUUID(), LocalDate.now(), emptyList(), emptyList(), 0)
+
+    data class PetAddressProjection(val petNames: List<String> = emptyList(), val addresses: List<TestAddress> = emptyList())
 }
 
 @Throughput(10, 10)

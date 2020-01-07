@@ -16,12 +16,14 @@ class DefaultSimpleKeyRepositoryTest {
 
     @Test
     fun `should save an entity`() {
+        val testEntity = testEntity()
         repo.save(testEntity)
         repo.save(testEntity.copy(personId = UUID.randomUUID(), nullable = "not null"))
     }
 
     @Test
     fun `should save and find an entity`() {
+        val testEntity = testEntity()
         repo.save(testEntity)
         val foundEntity = repo.findById(testEntity.personId, testEntity.updatedOn)
         assertThat(foundEntity).isEqualToComparingFieldByField(testEntity)
@@ -29,16 +31,16 @@ class DefaultSimpleKeyRepositoryTest {
 
     @Test
     fun `should save a nullable field and find an entity`() {
-        val entity = testEntity.copy(nullable = "foo")
+        val entity = testEntity(nullable = "foo")
 
         repo.save(entity)
-        val foundEntity = repo.findById(testEntity.personId, testEntity.updatedOn)
+        val foundEntity = repo.findById(entity.personId, entity.updatedOn)
         assertThat(foundEntity).isEqualToComparingFieldByField(entity)
     }
 
     @Test
     fun `should save an entity with a map and find it`() {
-        val entity = testEntity.copy(mapping = mapOf("foo" to TestAddress("123"), "bar" to TestAddress("234")))
+        val entity = testEntity(mapping = mapOf("foo" to TestAddress("123"), "bar" to TestAddress("234")))
 
         repo.save(entity)
         val foundEntity = repo.findById(entity.personId, entity.updatedOn)

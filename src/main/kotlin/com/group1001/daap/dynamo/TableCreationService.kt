@@ -8,8 +8,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import javax.annotation.PostConstruct
 
 class TableCreationService(private val properties: DynamoProperties, private val client: DynamoDbClient) {
-    private val entityClasses = Reflections(properties.classPackage)
-        .getTypesAnnotatedWith(Throughput::class.java)
+    private val entityClasses = Reflections(properties.classPackage).getTypesAnnotatedWith(Throughput::class.java)
     private val classNames = entityClasses.map { it.simpleName }
 
     @PostConstruct
@@ -63,7 +62,6 @@ class TableCreationService(private val properties: DynamoProperties, private val
     }
 
     companion object {
-        val logger: Logger =
-            LoggerFactory.getLogger(TableCreationService::class.java)
+        val logger: Logger = LoggerFactory.getLogger(TableCreationService::class.java)
     }
 }

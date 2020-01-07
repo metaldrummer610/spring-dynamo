@@ -23,6 +23,11 @@ interface SimpleKeyRepository<T, P> {
      */
     fun findById(partition: P): T?
 
+    /**
+     * Finds all the entities that have this [partition] key.
+     * For Simple keys, this only returns a single record.
+     * For Composite keys, this returns all the records for this key.
+     */
     fun findAllById(partition: P): List<T>
 
     /**
@@ -35,8 +40,14 @@ interface SimpleKeyRepository<T, P> {
      */
     fun save(t: T)
 
-    fun count(): Long // ?
+    /**
+     * Gets the list of entities in this repository
+     */
+    fun count(): Int?
 
+    /**
+     * Deletes a single record identified by [partition] key
+     */
     fun deleteOne(partition: P)
 }
 
@@ -50,12 +61,29 @@ interface CompositeKeyRepository<T, P, S> : SimpleKeyRepository<T, P> {
     fun findById(partition: P, sort: S): T?
 
     /**
+     * Finds the latest entity by [sort] key for this particular [partition]
+     */
+    fun findLatest(partition: P): T?
+
+    /**
+     * Finds all the entities for this [partition]
+     */
+    fun findAll(partition: P): List<T>
+
+    /**
      * Checks the repository for the existence of a entity
      */
-    fun exists(partition: P, sort: S? = null): Boolean
+    fun exists(partition: P, sort: S): Boolean
 
+    /**
+     * Finds all the entities that fall in the range provided by
+     * [start] and [end] for a particular [partition] key
+     */
     fun findAllBetween(partition: P, start: S, end: S): List<T>
 
+    /**
+     * Deletes a single record identified by [partition] and [sort] keys
+     */
     fun deleteOne(partition: P, sort: S)
 }
 
@@ -82,22 +110,15 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
             .keyConditionExpression("#PARTITION = :KEY")
             .expressionAttributeNames(mapOf("#PARTITION" to partitionKeyProperty.name))
             .expressionAttributeValues(mapOf(":KEY" to propertyToAttribute(partition)))
-    }.items().mapNotNull {
-        when {
-            it.isEmpty() -> null
-            else -> buildInstance(it, klass)
-        }
-    }
+    }.items().mapNotNull { buildInstance(it, klass) }
 
-    override fun findAll(): List<T> = db.scan { it.tableName(tableName()) }.items().map { buildInstance(it, klass) }
+    override fun findAll(): List<T> = db.scan { it.tableName(tableName()) }.items().mapNotNull { buildInstance(it, klass) }
 
     override fun save(t: T) {
         db.putItem { it.tableName(tableName()).item(buildProperties(t)) }
     }
 
-    override fun count(): Long {
-        TODO("not implemented")
-    }
+    override fun count(): Int? = db.scan { it.tableName(tableName()).select(Select.COUNT) }.count()
 
     override fun deleteOne(partition: P) {
         db.deleteItem {
@@ -107,13 +128,7 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
 
     protected fun tableName() = klass.simpleName
 
-    protected fun findByKeys(keys: Map<String, AttributeValue>): T? {
-        val item = db.getItem { it.tableName(tableName()).key(keys) }.item()
-        return when {
-            item.isEmpty() -> null
-            else -> buildInstance(item, klass)
-        }
-    }
+    protected fun findByKeys(keys: Map<String, AttributeValue>): T? = db.getItem { it.tableName(tableName()).key(keys) }.item()?.let { buildInstance(it, klass) }
 
     /**
      * Takes an object [r] and converts it into a [Map] of Dynamo values
@@ -129,7 +144,11 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
     /**
      * Builds an instance of a [klass] based on the contents of the [item] map
      */
-    protected fun <R : Any> buildInstance(item: Map<String, AttributeValue>, klass: KClass<R>): R {
+    protected fun <R : Any> buildInstance(item: Map<String, AttributeValue>, klass: KClass<R>): R? {
+        if (item.isEmpty()) {
+            return null
+        }
+
         val instance = klass.createInstance()
         item.forEach { (key, value) ->
             val prop = klass.memberProperties.first { it.name == key }
@@ -216,6 +235,24 @@ open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klas
         return findByKeys(keys)
     }
 
+    override fun findLatest(partition: P): T? = db.query {
+        it.tableName(tableName())
+            .select(Select.ALL_ATTRIBUTES)
+            .limit(1)
+            .scanIndexForward(false)
+            .keyConditionExpression("#PARTITION = :partition")
+            .expressionAttributeNames(mapOf("#PARTITION" to partitionKeyProperty.name))
+            .expressionAttributeValues(mapOf(":partition" to propertyToAttribute(partition)))
+    }.items().firstOrNull()?.let { buildInstance(it, klass) }
+
+    override fun findAll(partition: P): List<T> = db.query {
+        it.tableName(tableName())
+            .select(Select.ALL_ATTRIBUTES)
+            .keyConditionExpression("#PARTITION = :partition")
+            .expressionAttributeNames(mapOf("#PARTITION" to partitionKeyProperty.name))
+            .expressionAttributeValues(mapOf(":partition" to propertyToAttribute(partition)))
+    }.items().mapNotNull { buildInstance(it, klass) }
+
     override fun findAllBetween(partition: P, start: S, end: S): List<T> = db.query {
         it.tableName(tableName())
             .select(Select.ALL_ATTRIBUTES)
@@ -233,15 +270,18 @@ open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klas
                     ":end" to propertyToAttribute(end)
                 )
             )
-    }.items().mapNotNull {
-        when {
-            it.isEmpty() -> null
-            else -> buildInstance(it, klass)
-        }
-    }
+    }.items().mapNotNull { buildInstance(it, klass) }
 
-    override fun exists(partition: P, sort: S?): Boolean {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun exists(partition: P, sort: S): Boolean = db.getItem {
+        it.tableName(tableName())
+            .key(mapOf(
+                partitionKeyProperty.name to propertyToAttribute(partition),
+                sortKeyProperty.name to propertyToAttribute(sort)
+            ))
+        }.item().isNotEmpty()
+
+    override fun deleteOne(partition: P) {
+        throw IllegalStateException("Cannot use Partition deletion when Sort key is defined!")
     }
 
     override fun deleteOne(partition: P, sort: S) {

@@ -3,6 +3,7 @@ package com.group1001.daap.dynamo
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Bean
@@ -37,6 +38,8 @@ class SpringConfigurationTest {
     @Test
     fun listEntities() {
         assertThat(testRepository.findAll()).isEmpty()
+
+        val testEntity = testEntity()
         testRepository.save(testEntity)
         assertThat(testRepository.findAll()).containsOnly(testEntity)
         assertThat(testRepository.findById(testEntity.personId, testEntity.updatedOn))
@@ -92,6 +95,62 @@ class SpringConfigurationTest {
         val rates = mvaRateRepository.findAllBetween("MOODYS", LocalDate.now().minusDays(5), LocalDate.now())
         assertThat(rates).hasSize(5)
     }
+
+    @Test
+    fun `should find all entities for a given partition key`() {
+        for (i in 1..5) {
+            val entity = MvaRate("MOODYS", LocalDate.now().minusDays(i.toLong()), i.toDouble())
+            mvaRateRepository.save(entity)
+        }
+
+        val rates = mvaRateRepository.findAll("MOODYS")
+        assertThat(rates).hasSize(5)
+    }
+
+    @Test
+    fun `should be able to find the latest entity's sort key from a partition`() {
+        for (i in 1..5) {
+            val entity = MvaRate("MOODYS", LocalDate.now().minusDays(i.toLong()), i.toDouble())
+            mvaRateRepository.save(entity)
+        }
+
+        val rate = mvaRateRepository.findLatest("MOODYS")
+        assertThat(rate).isNotNull
+        assertThat(rate!!.date).isEqualTo(LocalDate.now().minusDays(1.toLong()))
+        assertThat(rate.rate).isEqualTo(1.toDouble())
+    }
+
+    @Test
+    fun `should be able to find the count of the repository`() {
+        for (i in 1..5) {
+            val entity = MvaRate("MOODYS", LocalDate.now().minusDays(i.toLong()), i.toDouble())
+            mvaRateRepository.save(entity)
+        }
+
+        assertThat(mvaRateRepository.count()).isNotNull().isEqualTo(5)
+
+        mvaRateRepository.deleteOne("MOODYS", LocalDate.now().minusDays(1.toLong()))
+        assertThat(mvaRateRepository.count()).isNotNull().isEqualTo(4)
+
+        assertThat(mvaRateRepository.exists("MOODYS", LocalDate.now().minusDays(2.toLong()))).isTrue()
+        assertThat(mvaRateRepository.exists("MOODYS", LocalDate.now().minusDays(1.toLong()))).isFalse()
+    }
+
+    @Test
+    fun `should be able to delete by partition key`() {
+        val foo = Foo()
+
+        fooRepository.save(foo)
+        fooRepository.deleteOne(foo.id)
+        assertThat(fooRepository.findById(foo.id)).isNull()
+    }
+
+    @Test
+    fun `should throw an exception when trying to delete by partition when sort is defined`() {
+        Assertions.assertThrows(IllegalStateException::class.java) {
+            testRepository.deleteOne(UUID.randomUUID())
+        }
+    }
 }
 
 class BarRepository(dynamoClient: DynamoDbClient) : DefaultCompositeKeyRepository<Bar, UUID, LocalDate>(dynamoClient, Bar::class) {
@@ -105,17 +164,10 @@ class BarRepository(dynamoClient: DynamoDbClient) : DefaultCompositeKeyRepositor
             it.tableName(tableName())
                 .indexName("other")
                 .keyConditionExpression("id = :id and #O = :other")
-                .expressionAttributeNames(mapOf(
-                    "#O" to "other"
-                ))
+                .expressionAttributeNames(mapOf("#O" to "other"))
                 .expressionAttributeValues(keys)
                 .select(Select.ALL_PROJECTED_ATTRIBUTES)
-        }.items().mapNotNull {
-            when {
-                it.isEmpty() -> null
-                else -> buildInstance(it, Bar::class)
-            }
-        }
+        }.items().mapNotNull { buildInstance(it, Bar::class) }
     }
 }
 
