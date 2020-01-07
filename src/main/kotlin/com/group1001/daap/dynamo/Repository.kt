@@ -36,6 +36,8 @@ interface SimpleKeyRepository<T, P> {
     fun save(t: T)
 
     fun count(): Long // ?
+
+    fun deleteOne(partition: P)
 }
 
 /**
@@ -53,6 +55,8 @@ interface CompositeKeyRepository<T, P, S> : SimpleKeyRepository<T, P> {
     fun exists(partition: P, sort: S? = null): Boolean
 
     fun findAllBetween(partition: P, start: S, end: S): List<T>
+
+    fun deleteOne(partition: P, sort: S)
 }
 
 /**
@@ -93,6 +97,12 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
 
     override fun count(): Long {
         TODO("not implemented")
+    }
+
+    override fun deleteOne(partition: P) {
+        db.deleteItem {
+            it.tableName(tableName()).key(mapOf(partitionKeyProperty.name to propertyToAttribute(partition)))
+        }
     }
 
     protected fun tableName() = klass.simpleName
@@ -232,5 +242,17 @@ open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klas
 
     override fun exists(partition: P, sort: S?): Boolean {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun deleteOne(partition: P, sort: S) {
+        db.deleteItem {
+            it.tableName(tableName())
+                .key(
+                    mapOf(
+                        partitionKeyProperty.name to propertyToAttribute(partition),
+                        sortKeyProperty.name to propertyToAttribute(sort)
+                    )
+                )
+        }
     }
 }
