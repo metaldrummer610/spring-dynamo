@@ -31,9 +31,8 @@ class SpringConfigurationTest {
     @Autowired
     lateinit var barRepository: BarRepository
 
-    @Test
-    fun startsUp() {
-    }
+    @Autowired
+    lateinit var mvaRateRepository: CompositeKeyRepository<MvaRate, String, LocalDate>
 
     @Test
     fun listEntities() {
@@ -81,6 +80,17 @@ class SpringConfigurationTest {
 
         assertThat(barRepository.findById(entity.id, entity.updatedOn)).isEqualToComparingFieldByField(entity)
         assertThat(barRepository.findByOther(entity.id, entity.other)).containsOnly(entity)
+    }
+
+    @Test
+    fun `partition key should allow querying between two values`() {
+        for (i in 1..5) {
+            val entity = MvaRate("MOODYS", LocalDate.now().minusDays(i.toLong()), i.toDouble())
+            mvaRateRepository.save(entity)
+        }
+
+        val rates = mvaRateRepository.findAllBetween("MOODYS", LocalDate.now().minusDays(5), LocalDate.now())
+        assertThat(rates).hasSize(5)
     }
 }
 

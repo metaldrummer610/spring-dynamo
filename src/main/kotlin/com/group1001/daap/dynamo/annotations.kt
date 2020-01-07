@@ -33,3 +33,7 @@ annotation class SortKey
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class LocalSecondaryIndex
+
+@Target(AnnotationTarget.PROPERTY)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class GlobalSecondaryIndex(val read: Long, val write: Long, val sortKey: String = "")

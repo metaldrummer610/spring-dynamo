@@ -13,6 +13,7 @@ import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaType
+import software.amazon.awssdk.services.dynamodb.model.GlobalSecondaryIndex as AwsGlobalSecondaryIndex
 import software.amazon.awssdk.services.dynamodb.model.LocalSecondaryIndex as AwsLocalSecondaryIndex
 
 /**
@@ -28,21 +29,22 @@ object TableBuilder {
         val hashKeyProperty = requireNotNull(properties.first { it.hasAnnotation<PartitionKey>() }) { "Dynamo Classes require a HashKey annotation" }
         val rangeKeyProperty = properties.firstOrNull { it.hasAnnotation<SortKey>() }
         val secondaryIndexes = properties.filter { it.hasAnnotation<LocalSecondaryIndex>() }
+        val globalIndexes = properties.filter { it.hasAnnotation<GlobalSecondaryIndex>() }
 
         val createRequest = CreateTableRequest.builder()
-            .provisionedThroughput(
-                ProvisionedThroughput.builder()
-                    .readCapacityUnits(throughput.read)
-                    .writeCapacityUnits(throughput.write)
-                    .build()
-            )
+            .provisionedThroughput { it.readCapacityUnits(throughput.read).writeCapacityUnits(throughput.write) }
             .tableName(kClass.simpleName)
             .keySchema(makePrimaryKey(hashKeyProperty.name, rangeKeyProperty?.name))
-            .attributeDefinitions(makeAttributes(hashKeyProperty, rangeKeyProperty, secondaryIndexes))
+            .attributeDefinitions(makeAttributes(hashKeyProperty, rangeKeyProperty, secondaryIndexes, globalIndexes))
 
         val localSecondaryIndexes = makeSecondaryIndexes(hashKeyProperty, secondaryIndexes)
         if (localSecondaryIndexes.isNotEmpty()) {
             createRequest.localSecondaryIndexes(localSecondaryIndexes)
+        }
+
+        val globalSecondaryIndexes = makeGlobalSecondaryIndexes(globalIndexes)
+        if (globalSecondaryIndexes.isNotEmpty()) {
+            createRequest.globalSecondaryIndexes(globalSecondaryIndexes)
         }
 
         client.createTable(createRequest.build())
@@ -74,10 +76,31 @@ object TableBuilder {
             .build()
     }
 
+    private fun <T> makeGlobalSecondaryIndexes(
+        indexes: List<KProperty1<T, *>>
+    ): List<AwsGlobalSecondaryIndex> = indexes.map {
+        val gsi = it.findAnnotation<GlobalSecondaryIndex>()!!
+        val keys = mutableListOf(
+            KeySchemaElement.builder().attributeName(it.name).keyType(KeyType.HASH).build()
+        )
+
+        if (gsi.sortKey.isNotBlank()) {
+            keys.add(KeySchemaElement.builder().attributeName(gsi.sortKey).keyType(KeyType.RANGE).build())
+        }
+
+        AwsGlobalSecondaryIndex.builder()
+            .indexName(it.name)
+            .keySchema(keys)
+            .projection(Projection.builder().projectionType(ProjectionType.ALL).build())
+            .provisionedThroughput { pt -> pt.readCapacityUnits(gsi.read).writeCapacityUnits(gsi.write) }
+            .build()
+    }
+
     private fun <T> makeAttributes(
         hashKeyProperty: KProperty1<T, *>,
         rangeKeyProperty: KProperty1<T, *>?,
-        secondaryIndexes: List<KProperty1<T, *>>
+        secondaryIndexes: List<KProperty1<T, *>>,
+        globalSecondaryIndexes: List<KProperty1<T, *>>
     ): List<AttributeDefinition> {
         fun makeAttribute(name: String, type: Type) =
             AttributeDefinition.builder().attributeName(name).attributeType(determineAttributeType(type)).build()
@@ -94,10 +117,13 @@ object TableBuilder {
             attributes.add(makeAttribute(it.name, it.returnType.javaType))
         }
 
+        globalSecondaryIndexes.forEach {
+            attributes.add(makeAttribute(it.name, it.returnType.javaType))
+        }
+
         return attributes
     }
 
-    // TODO: Support Enums as a type
     @Suppress("ComplexMethod")
     private fun determineAttributeType(type: Type): ScalarAttributeType = when (type) {
         String::class.java -> ScalarAttributeType.S
@@ -109,6 +135,7 @@ object TableBuilder {
         Double::class.java -> ScalarAttributeType.N
         Float::class.java -> ScalarAttributeType.N
         BigDecimal::class.java -> ScalarAttributeType.N
+        Enum::class.java -> ScalarAttributeType.S
         else -> throw IllegalArgumentException("$type is not supported!")
     }
 }

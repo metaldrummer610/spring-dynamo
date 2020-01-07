@@ -56,6 +56,15 @@ data class Bar(
     val list: List<String>? = null
 )
 
+@Throughput(10, 10)
 data class MvaRate(
-    @PartitionKey val date: LocalDate
+    @PartitionKey val security: String = "",
+    @SortKey val date: LocalDate = LocalDate.now(),
+    val rate: Double = 0.0,
+    val source: RateSource = RateSource.MOODYS
 )
+
+enum class RateSource {
+    MOODYS,
+    CUSTOM
+}

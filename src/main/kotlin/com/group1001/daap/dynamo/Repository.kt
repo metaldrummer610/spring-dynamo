@@ -25,8 +25,6 @@ interface SimpleKeyRepository<T, P> {
 
     fun findAllById(partition: P): List<T>
 
-    fun findAllBetween(start: P, end: P): List<T>
-
     /**
      * Finds all the entities in the repository
      */
@@ -62,7 +60,7 @@ interface CompositeKeyRepository<T, P, S> : SimpleKeyRepository<T, P> {
  */
 @UseExperimental(ExperimentalStdlibApi::class)
 @Suppress("UNCHECKED_CAST", "ReturnCount")
-open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClient, private val klass: KClass<T>) : SimpleKeyRepository<T, P> {
+open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClient, protected val klass: KClass<T>) : SimpleKeyRepository<T, P> {
     // Precompute the hash/range keys so we don't have to constantly find them at runtime
     protected val partitionKeyProperty: KProperty1<T, *> = klass.memberProperties.first { it.hasAnnotation<PartitionKey>() }
 
@@ -74,27 +72,20 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
         return findByKeys(keys)
     }
 
-    override fun findAllById(partition: P): List<T> {
-        return db.query {
-            it.tableName(tableName())
-                .select(Select.ALL_ATTRIBUTES)
-                .keyConditionExpression("#K1 = :KEY")
-                .expressionAttributeNames(mapOf("#K1" to partitionKeyProperty.name))
-                .expressionAttributeValues(mapOf(":KEY" to propertyToAttribute(partition)))
-        }.items().mapNotNull {
-            when {
-                it.isEmpty() -> null
-                else -> buildInstance(it, klass)
-            }
+    override fun findAllById(partition: P): List<T> = db.query {
+        it.tableName(tableName())
+            .select(Select.ALL_ATTRIBUTES)
+            .keyConditionExpression("#PARTITION = :KEY")
+            .expressionAttributeNames(mapOf("#PARTITION" to partitionKeyProperty.name))
+            .expressionAttributeValues(mapOf(":KEY" to propertyToAttribute(partition)))
+    }.items().mapNotNull {
+        when {
+            it.isEmpty() -> null
+            else -> buildInstance(it, klass)
         }
     }
 
-    override fun findAllBetween(start: P, end: P): List<T> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
-    override fun findAll(): List<T> =
-        db.scan { it.tableName(tableName()) }.items().map { buildInstance(it, klass) }
+    override fun findAll(): List<T> = db.scan { it.tableName(tableName()) }.items().map { buildInstance(it, klass) }
 
     override fun save(t: T) {
         db.putItem { it.tableName(tableName()).item(buildProperties(t)) }
@@ -148,6 +139,7 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
             null -> builder.nul(true).build()
             is List<*> -> builder.l(value.map { propertyToAttribute(it) }).build()
             is Map<*, *> -> builder.m(value.map { it.key.toString() to propertyToAttribute(it.value) }.associate { it }).build()
+            is Enum<*> -> builder.s(value.name).build()
             else -> {
                 val converter = TypeRegistry.findConverter(value.javaClass) as Converter<Any>?
                 if (converter != null) {
@@ -181,6 +173,11 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
             return null
         }
 
+        if (prop.isEnum) {
+            prop as Class<Enum<*>>
+            return prop.enumConstants.firstOrNull { it.name == attr.s() }
+        }
+
         // Otherwise check the registry for a converter and process it
         val converter = TypeRegistry.findConverter(prop)
         if (converter != null) {
@@ -209,8 +206,28 @@ open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klas
         return findByKeys(keys)
     }
 
-    override fun findAllBetween(partition: P, start: S, end: S): List<T> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun findAllBetween(partition: P, start: S, end: S): List<T> = db.query {
+        it.tableName(tableName())
+            .select(Select.ALL_ATTRIBUTES)
+            .keyConditionExpression("#PARTITION = :partition and #SORT between :start and :end")
+            .expressionAttributeNames(
+                mapOf(
+                    "#PARTITION" to partitionKeyProperty.name,
+                    "#SORT" to sortKeyProperty.name
+                )
+            )
+            .expressionAttributeValues(
+                mapOf(
+                    ":partition" to propertyToAttribute(partition),
+                    ":start" to propertyToAttribute(start),
+                    ":end" to propertyToAttribute(end)
+                )
+            )
+    }.items().mapNotNull {
+        when {
+            it.isEmpty() -> null
+            else -> buildInstance(it, klass)
+        }
     }
 
     override fun exists(partition: P, sort: S?): Boolean {
