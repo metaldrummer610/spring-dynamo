@@ -40,8 +40,7 @@ abstract class BaseConverter<FROM : Any>(private val fromClass: KClass<FROM>) : 
     }
 
     final override fun deserialize(attr: AttributeValue): FROM? {
-        // Have to do this weird around about way of checking if there's a NULL because of Kotlin's typing system
-        if (attr.getValueForField("NUL", Boolean::class.javaObjectType).orElse(false)) {
+        if (attr.isNull()) {
             return null
         }
 

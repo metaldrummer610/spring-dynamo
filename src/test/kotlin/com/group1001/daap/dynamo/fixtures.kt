@@ -29,7 +29,6 @@ fun setupDB() {
     TableBuilder.tableForEntity<TestEntity>(dbClient)
 }
 
-@ComplexType
 data class TestAddress(val street: String = "")
 
 @Throughput(10, 10)
@@ -55,4 +54,8 @@ data class Bar(
     @LocalRangeIndex val other: Int = 0,
     val mapping: Map<String, String>? = null,
     val list: List<String>? = null
+)
+
+data class MvaRate(
+    @HashKey val date: LocalDate
 )

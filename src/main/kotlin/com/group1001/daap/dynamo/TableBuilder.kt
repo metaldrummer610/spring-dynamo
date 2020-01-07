@@ -5,6 +5,7 @@ import software.amazon.awssdk.services.dynamodb.model.*
 import java.lang.reflect.Type
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
@@ -100,6 +101,7 @@ object TableBuilder {
     private fun determineAttributeType(type: Type): ScalarAttributeType = when (type) {
         String::class.java -> ScalarAttributeType.S
         LocalDate::class.java -> ScalarAttributeType.S
+        LocalDateTime::class.java -> ScalarAttributeType.S
         UUID::class.java -> ScalarAttributeType.S
         Int::class.java -> ScalarAttributeType.N
         Long::class.java -> ScalarAttributeType.N
