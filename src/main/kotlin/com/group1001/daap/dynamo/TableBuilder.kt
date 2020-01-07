@@ -13,6 +13,7 @@ import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaType
+import software.amazon.awssdk.services.dynamodb.model.LocalSecondaryIndex as AwsLocalSecondaryIndex
 
 /**
  * TableBuilder provides a method for creating a DynamoDB Table from a given Entity class
@@ -24,9 +25,9 @@ object TableBuilder {
     fun <T : Any> tableForEntity(client: DynamoDbClient, kClass: KClass<T>) {
         val throughput: Throughput = requireNotNull(kClass.findAnnotation()) { "Dynamo Classes require a Throughput Annotation" }
         val properties = kClass.memberProperties
-        val hashKeyProperty = requireNotNull(properties.first { it.hasAnnotation<HashKey>() }) { "Dynamo Classes require a HashKey annotation" }
-        val rangeKeyProperty = properties.firstOrNull { it.hasAnnotation<RangeKey>() }
-        val secondaryIndexes = properties.filter { it.hasAnnotation<LocalRangeIndex>() }
+        val hashKeyProperty = requireNotNull(properties.first { it.hasAnnotation<PartitionKey>() }) { "Dynamo Classes require a HashKey annotation" }
+        val rangeKeyProperty = properties.firstOrNull { it.hasAnnotation<SortKey>() }
+        val secondaryIndexes = properties.filter { it.hasAnnotation<LocalSecondaryIndex>() }
 
         val createRequest = CreateTableRequest.builder()
             .provisionedThroughput(
@@ -62,8 +63,8 @@ object TableBuilder {
     private fun <T> makeSecondaryIndexes(
         hashKeyProperty: KProperty1<T, *>,
         secondaryIndexes: List<KProperty1<T, *>>
-    ): List<LocalSecondaryIndex> = secondaryIndexes.map {
-        LocalSecondaryIndex.builder()
+    ): List<AwsLocalSecondaryIndex> = secondaryIndexes.map {
+        AwsLocalSecondaryIndex.builder()
             .indexName(it.name)
             .keySchema(
                 KeySchemaElement.builder().attributeName(hashKeyProperty.name).keyType(KeyType.HASH).build(),

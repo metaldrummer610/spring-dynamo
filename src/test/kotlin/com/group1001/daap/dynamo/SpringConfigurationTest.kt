@@ -9,13 +9,11 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
-import org.springframework.stereotype.Service
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
-import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType
 import software.amazon.awssdk.services.dynamodb.model.Select
 import java.net.URI
 import java.time.LocalDate
@@ -25,10 +23,10 @@ import java.util.*
 @Import(TestConfiguration::class)
 class SpringConfigurationTest {
     @Autowired
-    lateinit var testRepository: DynamoRepository<TestEntity>
+    lateinit var testRepository: CompositeKeyRepository<TestEntity, UUID, LocalDate>
 
     @Autowired
-    lateinit var fooRepository: DynamoRepository<Foo>
+    lateinit var fooRepository: SimpleKeyRepository<Foo, UUID>
 
     @Autowired
     lateinit var barRepository: BarRepository
@@ -54,21 +52,14 @@ class SpringConfigurationTest {
 
     @Test
     fun `should return an empty optional when the item does not exist`() {
-        val entity = fooRepository.findById("not-valid")
+        val entity = fooRepository.findById(UUID.randomUUID())
         assertThat(entity).isNull()
     }
 
     @Test
     fun `should throw exception when only giving a hash key and a range key is required`() {
         Assertions.assertThrows(IllegalStateException::class.java) {
-            testRepository.findById("not-valid")
-        }
-    }
-
-    @Test
-    fun `should throw exception when passing a hash key and range key when only hash key is defined`() {
-        Assertions.assertThrows(IllegalStateException::class.java) {
-            fooRepository.findById("not-valid", "not-a-range")
+            testRepository.findById(UUID.randomUUID())
         }
     }
 
@@ -93,7 +84,7 @@ class SpringConfigurationTest {
     }
 }
 
-class BarRepository(dynamoClient: DynamoDbClient) : SimpleDynamoRepository<Bar>(dynamoClient, Bar::class) {
+class BarRepository(dynamoClient: DynamoDbClient) : DefaultCompositeKeyRepository<Bar, UUID, LocalDate>(dynamoClient, Bar::class) {
     fun findByOther(id: UUID, i: Int): List<Bar> {
         val keys = mapOf(
             ":id" to AttributeValue.builder().s(id.toString()).build(),

@@ -1,6 +1,5 @@
 package com.group1001.daap.dynamo
 
-import software.amazon.awssdk.core.util.DefaultSdkAutoConstructMap
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import software.amazon.awssdk.services.dynamodb.model.Select
@@ -9,7 +8,6 @@ import java.lang.reflect.Type
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.createInstance
-import kotlin.reflect.full.createType
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
@@ -17,20 +15,17 @@ import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaType
 
 /**
- * Basic CRUD interface for a Dynamo repository
+ * CRUD interface for an Entity that only has a Partition Key [P]
  */
-interface DynamoRepository<T : Any> {
+interface SimpleKeyRepository<T, P> {
     /**
-     * Finds an entity based only on it's [hash] key
+     * Finds an entity based only on it's partition key
      */
-    fun <HASH : Any> findById(hash: HASH): T?
+    fun findById(partition: P): T?
 
-    /**
-     * Finds an entity based on the [hash] key and it's [range] key
-     */
-    fun <HASH : Any, RANGE : Any> findById(hash: HASH, range: RANGE): T?
+    fun findAllById(partition: P): List<T>
 
-    fun <HASH: Any> findAllById(hash: HASH): List<T>
+    fun findAllBetween(start: P, end: P): List<T>
 
     /**
      * Finds all the entities in the repository
@@ -42,12 +37,24 @@ interface DynamoRepository<T : Any> {
      */
     fun save(t: T)
 
+    fun count(): Long // ?
+}
+
+/**
+ * Extension interface for Entities that have both a Partition Key [P] and Sort Key [S]
+ */
+interface CompositeKeyRepository<T, P, S> : SimpleKeyRepository<T, P> {
+    /**
+     * Finds an entity based on the [partition] key and it's [sort] key
+     */
+    fun findById(partition: P, sort: S): T?
+
     /**
      * Checks the repository for the existence of a entity
      */
-    fun <HASH, RANGE> exists(hash: HASH, range: RANGE? = null): Boolean
+    fun exists(partition: P, sort: S? = null): Boolean
 
-    fun count(): Long // ?
+    fun findAllBetween(partition: P, start: S, end: S): List<T>
 }
 
 /**
@@ -55,45 +62,35 @@ interface DynamoRepository<T : Any> {
  */
 @UseExperimental(ExperimentalStdlibApi::class)
 @Suppress("UNCHECKED_CAST", "ReturnCount")
-open class SimpleDynamoRepository<T : Any>(protected val db: DynamoDbClient, private val klass: KClass<T>) : DynamoRepository<T> {
+open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClient, private val klass: KClass<T>) : SimpleKeyRepository<T, P> {
     // Precompute the hash/range keys so we don't have to constantly find them at runtime
-    private val hashKeyProperty: KProperty1<T, *> = klass.memberProperties.first { it.hasAnnotation<HashKey>() }
-    private val rangeKeyProperty: KProperty1<T, *>? = klass.memberProperties.firstOrNull { it.hasAnnotation<RangeKey>() }
+    protected val partitionKeyProperty: KProperty1<T, *> = klass.memberProperties.first { it.hasAnnotation<PartitionKey>() }
 
-    override fun <HASH : Any> findById(hash: HASH): T? {
-        check(rangeKeyProperty == null) { "Cannot search by hash key when both hash and range keys are defined" }
-
+    override fun findById(partition: P): T? {
         val keys = mapOf(
-            hashKeyProperty.name to propertyToAttribute(hash)
+            partitionKeyProperty.name to propertyToAttribute(partition)
         )
 
         return findByKeys(keys)
     }
 
-    override fun <HASH : Any, RANGE : Any> findById(hash: HASH, range: RANGE): T? {
-        checkNotNull(rangeKeyProperty) { "Cannot search by hash and range keys without a range key defined" }
-
-        val keys = mapOf(
-            hashKeyProperty.name to propertyToAttribute(hash),
-            rangeKeyProperty.name to propertyToAttribute(range)
-        )
-
-        return findByKeys(keys)
-    }
-
-    override fun <HASH : Any> findAllById(hash: HASH): List<T> {
+    override fun findAllById(partition: P): List<T> {
         return db.query {
             it.tableName(tableName())
                 .select(Select.ALL_ATTRIBUTES)
                 .keyConditionExpression("#K1 = :KEY")
-                .expressionAttributeNames(mapOf("#K1" to hashKeyProperty.name))
-                .expressionAttributeValues(mapOf(":KEY" to propertyToAttribute(hash)))
+                .expressionAttributeNames(mapOf("#K1" to partitionKeyProperty.name))
+                .expressionAttributeValues(mapOf(":KEY" to propertyToAttribute(partition)))
         }.items().mapNotNull {
             when {
                 it.isEmpty() -> null
                 else -> buildInstance(it, klass)
             }
         }
+    }
+
+    override fun findAllBetween(start: P, end: P): List<T> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
     override fun findAll(): List<T> =
@@ -103,17 +100,13 @@ open class SimpleDynamoRepository<T : Any>(protected val db: DynamoDbClient, pri
         db.putItem { it.tableName(tableName()).item(buildProperties(t)) }
     }
 
-    override fun <HASH, RANGE> exists(hash: HASH, range: RANGE?): Boolean {
-        TODO("not implemented")
-    }
-
     override fun count(): Long {
         TODO("not implemented")
     }
 
     protected fun tableName() = klass.simpleName
 
-    private fun findByKeys(keys: Map<String, AttributeValue>): T? {
+    protected fun findByKeys(keys: Map<String, AttributeValue>): T? {
         val item = db.getItem { it.tableName(tableName()).key(keys) }.item()
         return when {
             item.isEmpty() -> null
@@ -149,7 +142,7 @@ open class SimpleDynamoRepository<T : Any>(protected val db: DynamoDbClient, pri
     /**
      * Serializes a property into a Dynamo property
      */
-    private fun propertyToAttribute(value: Any?): AttributeValue {
+    protected fun propertyToAttribute(value: Any?): AttributeValue {
         val builder = AttributeValue.builder()
         return when (value) {
             null -> builder.nul(true).build()
@@ -175,7 +168,7 @@ open class SimpleDynamoRepository<T : Any>(protected val db: DynamoDbClient, pri
         }
 
         if (prop is ParameterizedType) {
-            return when(prop.rawType) {
+            return when (prop.rawType) {
                 Map::class.java -> attr.m().mapValues {
                     attributeToProperty(it.value, prop.actualTypeArguments[1])
                 }
@@ -195,5 +188,32 @@ open class SimpleDynamoRepository<T : Any>(protected val db: DynamoDbClient, pri
         }
 
         return buildInstance(attr.m(), prop.kotlin)
+    }
+}
+
+@UseExperimental(ExperimentalStdlibApi::class)
+@Suppress("UNCHECKED_CAST")
+open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klass: KClass<T>) : DefaultSimpleKeyRepository<T, P>(db, klass), CompositeKeyRepository<T, P, S> {
+    private val sortKeyProperty: KProperty1<T, *> = klass.memberProperties.first { it.hasAnnotation<SortKey>() }
+
+    override fun findById(partition: P): T? {
+        throw IllegalStateException("Cannot use Partition lookup when Sort key is defined!")
+    }
+
+    override fun findById(partition: P, sort: S): T? {
+        val keys = mapOf(
+            partitionKeyProperty.name to propertyToAttribute(partition),
+            sortKeyProperty.name to propertyToAttribute(sort)
+        )
+
+        return findByKeys(keys)
+    }
+
+    override fun findAllBetween(partition: P, start: S, end: S): List<T> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun exists(partition: P, sort: S?): Boolean {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }

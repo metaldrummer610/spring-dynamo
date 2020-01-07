@@ -11,7 +11,12 @@ import org.springframework.beans.factory.support.RootBeanDefinition
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar
 import org.springframework.core.ResolvableType
 import org.springframework.core.type.AnnotationMetadata
+import kotlin.reflect.KProperty1
+import kotlin.reflect.full.hasAnnotation
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.jvm.javaType
 
+@UseExperimental(ExperimentalStdlibApi::class)
 class EntityRegistry : ImportBeanDefinitionRegistrar, BeanFactoryAware {
     private lateinit var beanFactory: BeanFactory
 
@@ -26,19 +31,35 @@ class EntityRegistry : ImportBeanDefinitionRegistrar, BeanFactoryAware {
             .filterNot { registry.isBeanNameInUse(beanName(it)) }
             .forEach {
                 logger.debug("Registering entity ${it.simpleName}")
+                val partitionKey = it.kotlin.memberProperties.first { prop -> prop.hasAnnotation<PartitionKey>() }
+                val sortKey = it.kotlin.memberProperties.firstOrNull { prop -> prop.hasAnnotation<SortKey>() }
 
-                val beanDefinition = RootBeanDefinition(SimpleDynamoRepository::class.java)
+                val repositoryClass: Class<*>
+                val genericType: ResolvableType
+
+                if (sortKey != null) {
+                    repositoryClass = DefaultCompositeKeyRepository::class.java
+                    genericType = ResolvableType.forClassWithGenerics(CompositeKeyRepository::class.java, it, classFromProperty(partitionKey), classFromProperty(sortKey))
+                } else {
+                    repositoryClass = DefaultSimpleKeyRepository::class.java
+                    genericType = ResolvableType.forClassWithGenerics(SimpleKeyRepository::class.java, it, classFromProperty(partitionKey))
+                }
+
+                val beanDefinition = RootBeanDefinition(repositoryClass)
                 beanDefinition.constructorArgumentValues.addIndexedArgumentValue(0, RuntimeBeanReference("dynamoClient"))
                 beanDefinition.constructorArgumentValues.addIndexedArgumentValue(1, it.kotlin)
 
-                // Need to set the target type so that we can autowire resolve this bean by using [DynamoRepository<T>] style syntax
-                beanDefinition.setTargetType(ResolvableType.forClassWithGenerics(DynamoRepository::class.java, it))
+                // Need to set the target type so that we can autowire resolve this bean by using [SimpleKeyRepository<T>] style syntax
+                beanDefinition.setTargetType(genericType)
 
                 registry.registerBeanDefinition(beanName(it), beanDefinition)
+                logger.debug("Registered ${it.simpleName} as $beanDefinition")
             }
     }
 
     private fun beanName(it: Class<*>) = "${it.simpleName.decapitalize()}Repository"
+
+    private fun classFromProperty(prop: KProperty1<out Any, Any?>) = prop.returnType.javaType as Class<*>
 
     override fun setBeanFactory(beanFactory: BeanFactory) {
         this.beanFactory = beanFactory

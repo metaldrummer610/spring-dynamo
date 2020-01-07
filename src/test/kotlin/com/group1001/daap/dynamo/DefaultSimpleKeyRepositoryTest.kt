@@ -3,10 +3,11 @@ package com.group1001.daap.dynamo
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.LocalDate
 import java.util.*
 
-class SimpleDynamoRepositoryTest {
-    private val repo = SimpleDynamoRepository(dbClient, TestEntity::class)
+class DefaultSimpleKeyRepositoryTest {
+    private val repo = DefaultCompositeKeyRepository<TestEntity, UUID, LocalDate>(dbClient, TestEntity::class)
 
     @BeforeEach
     fun before() {

@@ -33,11 +33,11 @@ data class TestAddress(val street: String = "")
 
 @Throughput(10, 10)
 data class TestEntity(
-    @HashKey val personId: UUID,
-    @RangeKey val updatedOn: LocalDate,
+    @PartitionKey val personId: UUID,
+    @SortKey val updatedOn: LocalDate,
     val petNames: List<String>,
     val addresses: List<TestAddress>,
-    @LocalRangeIndex val other: Int,
+    @LocalSecondaryIndex val other: Int,
     val nullable: String? = null,
     val mapping: Map<String, TestAddress> = emptyMap()
 ) {
@@ -45,17 +45,17 @@ data class TestEntity(
 }
 
 @Throughput(10, 10)
-data class Foo(@HashKey val id: UUID = UUID.randomUUID())
+data class Foo(@PartitionKey val id: UUID = UUID.randomUUID())
 
 @Throughput(10, 10)
 data class Bar(
-    @HashKey val id: UUID = UUID.randomUUID(),
-    @RangeKey val updatedOn: LocalDate = LocalDate.now(),
-    @LocalRangeIndex val other: Int = 0,
+    @PartitionKey val id: UUID = UUID.randomUUID(),
+    @SortKey val updatedOn: LocalDate = LocalDate.now(),
+    @LocalSecondaryIndex val other: Int = 0,
     val mapping: Map<String, String>? = null,
     val list: List<String>? = null
 )
 
 data class MvaRate(
-    @HashKey val date: LocalDate
+    @PartitionKey val date: LocalDate
 )
