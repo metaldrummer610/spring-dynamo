@@ -5,6 +5,8 @@ import org.reflections.Reflections
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.dynamodb.model.TableStatus
+import java.time.Duration
 import javax.annotation.PostConstruct
 
 class TableCreationService(private val properties: DynamoProperties, private val client: DynamoDbClient) {
@@ -30,9 +32,16 @@ class TableCreationService(private val properties: DynamoProperties, private val
             TableBuilder.tableForEntity(client, it.kotlin)
         }
 
-        Awaitility.await().pollInSameThread().until {
+        var remainingTables = classNames
+        Awaitility.await().pollInSameThread().pollInterval(Duration.ofSeconds(1)).until {
             logger.debug("Polling for created tables...")
-            client.listTables().tableNames().containsAll(classNames)
+
+            remainingTables = remainingTables.filterNot { t ->
+                val table = client.describeTable { it.tableName(t) }
+                table.table().tableStatus() == TableStatus.ACTIVE
+            }
+
+            remainingTables.isEmpty()
         }
     }
 
@@ -46,7 +55,7 @@ class TableCreationService(private val properties: DynamoProperties, private val
             client.deleteTable { builder -> builder.tableName(it) }
         }
 
-        Awaitility.await().pollInSameThread().until {
+        Awaitility.await().pollInSameThread().pollInterval(Duration.ofSeconds(1)).until {
             logger.debug("Polling for deleted tables...")
             client.listTables().tableNames().none { classNames.contains(it) }
         }

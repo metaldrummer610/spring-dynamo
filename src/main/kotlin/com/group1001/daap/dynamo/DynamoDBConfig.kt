@@ -1,5 +1,6 @@
 package com.group1001.daap.dynamo
 
+import org.springframework.boot.autoconfigure.AutoConfigureOrder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.ConstructorBinding
@@ -7,11 +8,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import org.springframework.core.Ordered
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 @Configuration
 @EnableConfigurationProperties(DynamoProperties::class)
 @Import(EntityRegistry::class)
+@AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
 class DynamoDBConfig {
     @Bean
     @ConditionalOnMissingBean

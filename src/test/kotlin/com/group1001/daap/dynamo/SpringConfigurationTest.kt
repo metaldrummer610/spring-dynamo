@@ -3,7 +3,6 @@ package com.group1001.daap.dynamo
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Bean
@@ -44,6 +43,8 @@ class SpringConfigurationTest {
         assertThat(testRepository.findAll()).containsOnly(testEntity)
         assertThat(testRepository.findById(testEntity.personId, testEntity.updatedOn))
             .isEqualToComparingFieldByField(testEntity)
+
+        fooRepository.findAll().forEach { fooRepository.deleteOne(it.id) }
 
         val foo = Foo()
         assertThat(fooRepository.findAll()).isEmpty()
@@ -150,6 +151,26 @@ class SpringConfigurationTest {
         Assertions.assertThrows(IllegalStateException::class.java) {
             testRepository.deleteOne(UUID.randomUUID())
         }
+    }
+
+    @Test
+    fun `should be able to ask for a projection of an entity with only a partition key`() {
+        val foo = Foo(name = "bar")
+        fooRepository.save(foo)
+        val expected = Foo.FooProjection(foo.name)
+
+        val projection = fooRepository.asProjection(foo.id, Foo.FooProjection::class)
+        assertThat(projection).isEqualToComparingFieldByField(expected)
+    }
+
+    @Test
+    fun `should be able to ask for a projection of an entity with both a partition and sort key`() {
+        val entity = testEntity().copy(petNames = listOf("foo", "bar"), addresses = listOf(TestAddress("132"), TestAddress("4523")))
+        testRepository.save(entity)
+        val expected = TestEntity.PetAddressProjection(entity.petNames, entity.addresses)
+
+        val projection = testRepository.asProjection(entity.personId, entity.updatedOn, TestEntity.PetAddressProjection::class)
+        assertThat(projection).isEqualToComparingFieldByField(expected)
     }
 }
 

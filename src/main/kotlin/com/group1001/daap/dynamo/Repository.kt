@@ -36,6 +36,12 @@ interface SimpleKeyRepository<T, P> {
     fun findAll(): List<T>
 
     /**
+     * Finds a specific entity with a [partition] key and projects the attributes
+     * into the given [projectionClass]
+     */
+    fun <K : Any> asProjection(partition: P, projectionClass: KClass<K>): K?
+
+    /**
      * Saves a single entity into the repository
      */
     fun save(t: T)
@@ -43,7 +49,7 @@ interface SimpleKeyRepository<T, P> {
     /**
      * Gets the list of entities in this repository
      */
-    fun count(): Int?
+    fun count(): Int
 
     /**
      * Deletes a single record identified by [partition] key
@@ -71,6 +77,12 @@ interface CompositeKeyRepository<T, P, S> : SimpleKeyRepository<T, P> {
     fun findAll(partition: P): List<T>
 
     /**
+     * Finds a specific entity with [partition] and [sort] keys and projects the attributes
+     * into the given [projectionClass]
+     */
+    fun <K : Any> asProjection(partition: P, sort: S, projectionClass: KClass<K>): K?
+
+    /**
      * Checks the repository for the existence of a entity
      */
     fun exists(partition: P, sort: S): Boolean
@@ -91,7 +103,7 @@ interface CompositeKeyRepository<T, P, S> : SimpleKeyRepository<T, P> {
  * Default implementation of a Dynamo repository
  */
 @UseExperimental(ExperimentalStdlibApi::class)
-@Suppress("UNCHECKED_CAST", "ReturnCount")
+@Suppress("UNCHECKED_CAST", "ReturnCount", "ComplexMethod", "TooManyFunctions")
 open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClient, protected val klass: KClass<T>) : SimpleKeyRepository<T, P> {
     // Precompute the hash/range keys so we don't have to constantly find them at runtime
     protected val partitionKeyProperty: KProperty1<T, *> = klass.memberProperties.first { it.hasAnnotation<PartitionKey>() }
@@ -114,11 +126,17 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
 
     override fun findAll(): List<T> = db.scan { it.tableName(tableName()) }.items().mapNotNull { buildInstance(it, klass) }
 
+    override fun <K : Any> asProjection(partition: P, projectionClass: KClass<K>): K? {
+        val keys = mapOf(partitionKeyProperty.name to propertyToAttribute(partition))
+
+        return findByProjection(keys, projectionClass)
+    }
+
     override fun save(t: T) {
         db.putItem { it.tableName(tableName()).item(buildProperties(t)) }
     }
 
-    override fun count(): Int? = db.scan { it.tableName(tableName()).select(Select.COUNT) }.count()
+    override fun count(): Int = db.scan { it.tableName(tableName()).select(Select.COUNT) }.count() ?: 0
 
     override fun deleteOne(partition: P) {
         db.deleteItem {
@@ -215,6 +233,32 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
 
         return buildInstance(attr.m(), prop.kotlin)
     }
+
+    /**
+     * Helper function that finds a single document by it's [keys] and projects it into the [projectionClass]
+     */
+    protected fun <K : Any> findByProjection(keys: Map<String, AttributeValue>, projectionClass: KClass<K>): K? {
+        val projectionMembers = projectionClass.memberProperties.map { Pair(it.name, it.returnType) }
+        val klassMembers = klass.memberProperties.map { Pair(it.name, it.returnType) }
+
+        val projectionExpression: MutableList<String> = mutableListOf()
+        val attributeNames: MutableMap<String, String> = mutableMapOf()
+        projectionMembers.intersect(klassMembers).forEach {
+            projectionExpression.add("#${it.first.toUpperCase()}")
+            attributeNames["#${it.first.toUpperCase()}"] = it.first
+        }
+
+        if (projectionExpression.isEmpty()) {
+            throw IllegalStateException("Cannot project $klass to $projectionClass because they do not share any properties!")
+        }
+
+        return db.getItem {
+            it.tableName(tableName())
+                .key(keys)
+                .projectionExpression(projectionExpression.joinToString())
+                .expressionAttributeNames(attributeNames)
+        }.item()?.let { buildInstance(it, projectionClass) }
+    }
 }
 
 @UseExperimental(ExperimentalStdlibApi::class)
@@ -271,6 +315,19 @@ open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klas
                 )
             )
     }.items().mapNotNull { buildInstance(it, klass) }
+
+    override fun <K : Any> asProjection(partition: P, sort: S, projectionClass: KClass<K>): K? {
+        val keys = mapOf(
+            partitionKeyProperty.name to propertyToAttribute(partition),
+            sortKeyProperty.name to propertyToAttribute(sort)
+        )
+
+        return findByProjection(keys, projectionClass)
+    }
+
+    override fun <K : Any> asProjection(partition: P, projectionClass: KClass<K>): K? {
+        throw IllegalStateException("Cannot project using Partition when Sort key is defined!")
+    }
 
     override fun exists(partition: P, sort: S): Boolean = db.getItem {
         it.tableName(tableName())
