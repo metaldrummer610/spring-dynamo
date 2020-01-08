@@ -2,10 +2,12 @@ package com.group1001.daap.dynamo
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
 import java.util.*
 
+@Disabled("CI doesn't have docker containers")
 class DefaultSimpleKeyRepositoryTest {
     private val repo = DefaultCompositeKeyRepository<TestEntity, UUID, LocalDate>(dbClient, TestEntity::class)
 
