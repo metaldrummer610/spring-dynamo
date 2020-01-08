@@ -36,7 +36,7 @@ fun setupDB() {
     TableBuilder.tableForEntity<TestEntity>(dbClient)
 }
 
-data class TestAddress(val street: String = "")
+data class TestAddress(val street: String)
 
 @Throughput(10, 10)
 data class TestEntity(
@@ -48,14 +48,12 @@ data class TestEntity(
     val nullable: String? = null,
     val mapping: Map<String, TestAddress> = emptyMap()
 ) {
-    constructor() : this(UUID.randomUUID(), LocalDate.now(), emptyList(), emptyList(), 0)
-
     data class PetAddressProjection(val petNames: List<String> = emptyList(), val addresses: List<TestAddress> = emptyList())
 }
 
 @Throughput(10, 10)
 data class Foo(@PartitionKey val id: UUID = UUID.randomUUID(), val name: String = "a") {
-    data class FooProjection(val name: String = "")
+    data class FooProjection(val name: String)
 }
 
 @Throughput(10, 10)

@@ -6,6 +6,7 @@ import software.amazon.awssdk.services.dynamodb.model.Select
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import kotlin.reflect.KClass
+import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.hasAnnotation
@@ -163,17 +164,45 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
      * Builds an instance of a [klass] based on the contents of the [item] map
      */
     protected fun <R : Any> buildInstance(item: Map<String, AttributeValue>, klass: KClass<R>): R? {
+        // If we have an empty map, assume it's null
         if (item.isEmpty()) {
             return null
         }
 
-        val instance = klass.createInstance()
+        // Deserialize all the fields and store them for future processing
+        val fields = mutableMapOf<String, Any?>() // Field name -> value
         item.forEach { (key, value) ->
             val prop = klass.memberProperties.first { it.name == key }
-            prop.isAccessible = true
-            prop.javaField!!.set(instance, attributeToProperty(value, prop.returnType.javaType))
+            fields[key] = attributeToProperty(value, prop.returnType.javaType)
         }
 
+        // Figure out what kind of constructor we have
+        // If we have a no-arg constructor, go ahead and create an instance of this type using it
+        // If we have a constructor with arguments and no no-arg, use it
+        // If we don't have any constructors for whatever reason, throw an exception because you probably screwed something up
+        val noArgConstructor = klass.constructors.firstOrNull { it.parameters.isEmpty() }
+        val withArgConstructor = klass.constructors.firstOrNull { it.parameters.isNotEmpty() }
+        val instance: R = when {
+            noArgConstructor != null -> { noArgConstructor.call() }
+            withArgConstructor == null -> throw IllegalStateException("Cannot create an instance of $klass when it does not have either a no-arg constructor, or a single arg'd constructor!")
+            else -> {
+                // Iterate over the constructors arguments, finding the field from above and grabbing it's value
+                val args = linkedMapOf<KParameter, Any?>()
+                withArgConstructor.parameters.forEach {
+                    args[it] = fields[it.name]
+                }
+
+                // Then call the constructor with the arguments
+                withArgConstructor.callBy(args)
+            }
+        }
+
+        // Finally we set all the fields on the instance of the class
+        fields.forEach { (name, value) ->
+            val prop = klass.memberProperties.first { it.name == name }
+            prop.isAccessible = true
+            prop.javaField!!.set(instance, value)
+        }
         return instance
     }
 
