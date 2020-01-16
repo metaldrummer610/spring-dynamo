@@ -3,8 +3,9 @@ package com.group1001.daap.dynamo
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty
 
-@Disabled("CI doesn't have docker containers")
+@DisabledIfSystemProperty(named = "CI", matches = "true")
 class TableBuilderTest {
     @Test
     fun `should create a table`() {

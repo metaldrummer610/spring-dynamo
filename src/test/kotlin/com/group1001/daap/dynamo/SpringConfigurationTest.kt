@@ -4,6 +4,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Bean
@@ -20,7 +22,7 @@ import java.net.URI
 import java.time.LocalDate
 import java.util.*
 
-@Disabled("CI doesn't have docker containers")
+@DisabledIfSystemProperty(named = "CI", matches = "true")
 @SpringBootTest(classes = [DynamoDBConfig::class])
 @Import(TestConfiguration::class)
 class SpringConfigurationTest {

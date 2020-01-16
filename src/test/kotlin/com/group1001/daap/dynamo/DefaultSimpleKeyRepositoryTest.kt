@@ -4,10 +4,11 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty
 import java.time.LocalDate
 import java.util.*
 
-@Disabled("CI doesn't have docker containers")
+@DisabledIfSystemProperty(named = "CI", matches = "true")
 class DefaultSimpleKeyRepositoryTest {
     private val repo = DefaultCompositeKeyRepository<TestEntity, UUID, LocalDate>(dbClient, TestEntity::class)
 
