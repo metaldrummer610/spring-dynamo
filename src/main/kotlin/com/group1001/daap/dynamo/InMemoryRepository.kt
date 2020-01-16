@@ -1,5 +1,7 @@
 package com.group1001.daap.dynamo
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.hasAnnotation
@@ -11,7 +13,7 @@ import kotlin.reflect.jvm.javaField
 @Suppress("UNCHECKED_CAST")
 @UseExperimental(ExperimentalStdlibApi::class)
 open class SimpleInMemoryRepository<T : Any, P> : SimpleKeyRepository<T, P> {
-    private val storage = mutableMapOf<P, T>()
+    private val storage = ConcurrentHashMap<P, T>()
 
     override fun findById(partition: P): T? = storage[partition]
 
@@ -38,33 +40,31 @@ open class SimpleInMemoryRepository<T : Any, P> : SimpleKeyRepository<T, P> {
 
 @Suppress("UNCHECKED_CAST")
 @UseExperimental(ExperimentalStdlibApi::class)
-class CompositeInMemoryRepository<T : Any, P, S : Comparable<S>>(private val klass: KClass<T>): CompositeKeyRepository<T, P, S> {
-    private val storage: MutableMap<P, MutableList<T>> = mutableMapOf()
+class CompositeInMemoryRepository<T : Any, P, S : Comparable<S>>(klass: KClass<T>) : CompositeKeyRepository<T, P, S> {
+    private val storage: MutableMap<P, ConcurrentHashMap<S, T>> = ConcurrentHashMap()
+    private val size = AtomicInteger()
     private val sortKey: KProperty1<T, S> = klass.memberProperties.first { it.hasAnnotation<SortKey>() } as KProperty1<T, S>
 
-    override fun findAllById(partition: P): List<T> = storage[partition] ?: emptyList()
+    override fun findAllById(partition: P): List<T> = storage[partition]?.values?.toList() ?: emptyList()
 
-    override fun findAll(): List<T> = storage.flatMap { it.value }
+    override fun findAll(): List<T> = storage.flatMap { it.value.values }
 
-    override fun findById(partition: P, sort: S): T? = storage[partition]?.first { sortKey.get(it) == sort }
+    override fun findById(partition: P, sort: S): T? = storage[partition]?.get(sort)
 
-    override fun findLatest(partition: P): T? = storage[partition]?.maxBy { sortKey.get(it) }
+    override fun findLatest(partition: P): T? = storage[partition]?.entries?.maxBy { it.key }?.value
 
-    override fun findAll(partition: P): List<T> = storage[partition] ?: emptyList()
+    override fun findAll(partition: P): List<T> = storage[partition]?.values?.toList() ?: emptyList()
 
-    override fun exists(partition: P, sort: S): Boolean {
-        val list = storage[partition] ?: return false
-        return list.firstOrNull { sortKey.get(it) == sort } == null
-    }
+    override fun exists(partition: P, sort: S): Boolean = storage[partition]?.containsKey(sort) ?: false
 
     override fun findAllBetween(partition: P, start: S, end: S): List<T> {
-        val list = storage[partition] ?: return emptyList()
-        return list.filter { sortKey.get(it) in start..end }
+        val map = storage[partition] ?: return emptyList()
+        return map.filterKeys { it in start..end }.values.toList()
     }
 
     override fun deleteOne(partition: P, sort: S) {
-        val list = storage[partition] ?: return
-        list.removeIf { sortKey.get(it) == sort }
+        storage[partition]?.remove(sort)
+        size.decrementAndGet()
     }
 
     override fun <K : Any> asProjection(partition: P, sort: S, projectionClass: KClass<K>): K? {
@@ -74,13 +74,15 @@ class CompositeInMemoryRepository<T : Any, P, S : Comparable<S>>(private val kla
 
     override fun save(t: T) {
         val partitionKey = t.javaClass.kotlin.memberProperties.first { it.hasAnnotation<PartitionKey>() }
+        val sortKey = t.javaClass.kotlin.memberProperties.first { it.hasAnnotation<SortKey>() }
 
-        val list = storage[partitionKey.get(t) as P] ?: mutableListOf()
-        list.add(t)
-        storage[partitionKey.get(t) as P] = list
+        val map = storage[partitionKey.get(t) as P] ?: ConcurrentHashMap()
+        map[sortKey.get(t) as S] = t
+        storage[partitionKey.get(t) as P] = map
+        size.incrementAndGet()
     }
 
-    override fun count(): Int = storage.flatMap { it.value }.size
+    override fun count(): Int = size.get()
 
     override fun findById(partition: P): T? = throw IllegalStateException("Cannot use Partition lookup when Sort key is defined!")
 
@@ -89,7 +91,7 @@ class CompositeInMemoryRepository<T : Any, P, S : Comparable<S>>(private val kla
     override fun deleteOne(partition: P): Unit = throw IllegalStateException("Cannot use Partition deletion when Sort key is defined!")
 }
 
-private fun <K : Any, T: Any> projectTo(projectionClass: KClass<K>, t: T): K? {
+private fun <K : Any, T : Any> projectTo(projectionClass: KClass<K>, t: T): K? {
     val projectionMembers = projectionClass.memberProperties
     val klassMembers = t.javaClass.kotlin.memberProperties
 

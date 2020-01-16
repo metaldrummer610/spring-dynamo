@@ -5,6 +5,7 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import java.lang.reflect.Type
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.util.*
 import kotlin.reflect.KClass
 
@@ -90,6 +91,7 @@ object TypeRegistry {
     // The collection of registered converters available to the system
     private val converters: MutableList<Converter<*>> = mutableListOf()
 
+    @JvmStatic
     fun <T : Any> addConverter(converter: Converter<T>) = converters.add(converter)
 
     /**
@@ -101,6 +103,7 @@ object TypeRegistry {
     /**
      * Helper that adds a [SimpleConverter]
      */
+    @JvmStatic
     inline fun <reified T : Any> addSimpleConverter(
         noinline ser: (t: T, b: AttributeValue.Builder) -> Unit,
         noinline deser: (attr: AttributeValue) -> T
@@ -109,6 +112,7 @@ object TypeRegistry {
     /**
      * Attempts to find a [Converter] for the given [Type]
      */
+    @JvmStatic
     fun findConverter(type: Type) = converters.firstOrNull { it.supports(type) }
 
     init {
@@ -123,5 +127,6 @@ object TypeRegistry {
         addSimpleConverter<ByteArray>({ bs, b -> b.bs(SdkBytes.fromByteArray(bs)) }, { it.b().asByteArray() })
         addSimpleConverter<LocalDate>({ date, b -> b.s(date.toString()) }, { LocalDate.parse(it.s()) })
         addSimpleConverter<LocalDateTime>({ date, b -> b.s(date.toString()) }, { LocalDateTime.parse(it.s()) })
+        addSimpleConverter<OffsetDateTime>({ date, b -> b.s(date.toString()) }, { OffsetDateTime.parse(it.s()) })
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Profile
 import org.springframework.core.Ordered
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
@@ -15,6 +16,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 @EnableConfigurationProperties(DynamoProperties::class)
 @Import(EntityRegistry::class)
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
+@Profile("!test")
 class DynamoDBConfig {
     @Bean
     @ConditionalOnMissingBean
@@ -37,3 +39,10 @@ class DynamoProperties(
         VALIDATE
     }
 }
+
+@Configuration
+@Import(TestEntityRegistry::class)
+@EnableConfigurationProperties(DynamoProperties::class)
+@AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
+@Profile("test")
+class DynamoTestConfiguration
