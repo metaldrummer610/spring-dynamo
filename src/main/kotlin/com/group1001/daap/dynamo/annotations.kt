@@ -37,3 +37,11 @@ annotation class LocalSecondaryIndex
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class GlobalSecondaryIndex(val read: Long, val write: Long, val sortKey: String = "")
+
+/**
+ * Used to change the name of a field in a projection from the original name
+ * @param name The field name to change the source field to
+ */
+@Target(AnnotationTarget.PROPERTY)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Alias(val name: String)

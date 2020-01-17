@@ -22,7 +22,7 @@ import java.net.URI
 import java.time.LocalDate
 import java.util.*
 
-@DisabledIfSystemProperty(named = "CI", matches = "true")
+@Disabled
 @SpringBootTest(classes = [DynamoDBConfig::class])
 @Import(TestConfiguration::class)
 class SpringConfigurationTest {
@@ -175,6 +175,14 @@ class SpringConfigurationTest {
 
         val projection = testRepository.asProjection(entity.personId, entity.updatedOn, TestEntity.PetAddressProjection::class)
         assertThat(projection).isEqualToComparingFieldByField(expected)
+    }
+
+    @Test
+    fun `should be able to alias projection fields`() {
+        val entity = testEntity()
+        testRepository.save(entity)
+        assertThat(testRepository.asProjection(entity.personId, entity.updatedOn, TestEntity.AliasProjection::class))
+            .isEqualToComparingFieldByField(TestEntity.AliasProjection(entity.petNames, null))
     }
 }
 

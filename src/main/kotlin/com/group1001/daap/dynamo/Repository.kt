@@ -8,7 +8,7 @@ import java.lang.reflect.Type
 import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty1
-import kotlin.reflect.full.createInstance
+import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
@@ -172,8 +172,16 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
         // Deserialize all the fields and store them for future processing
         val fields = mutableMapOf<String, Any?>() // Field name -> value
         item.forEach { (key, value) ->
-            val prop = klass.memberProperties.first { it.name == key }
-            fields[key] = attributeToProperty(value, prop.returnType.javaType)
+            val prop = klass.memberProperties.first {
+                it.findAnnotation<Alias>()?.name == key || it.name == key
+            }
+            val name: String = if (prop.hasAnnotation<Alias>()) {
+                prop.name
+            } else {
+                key
+            }
+
+            fields[name] = attributeToProperty(value, prop.returnType.javaType)
         }
 
         // Figure out what kind of constructor we have
@@ -183,7 +191,9 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
         val noArgConstructor = klass.constructors.firstOrNull { it.parameters.isEmpty() }
         val withArgConstructor = klass.constructors.firstOrNull { it.parameters.isNotEmpty() }
         val instance: R = when {
-            noArgConstructor != null -> { noArgConstructor.call() }
+            noArgConstructor != null -> {
+                noArgConstructor.call()
+            }
             withArgConstructor == null -> throw IllegalStateException("Cannot create an instance of $klass when it does not have either a no-arg constructor, or a single arg'd constructor!")
             else -> {
                 // Iterate over the constructors arguments, finding the field from above and grabbing it's value
@@ -267,7 +277,15 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
      * Helper function that finds a single document by it's [keys] and projects it into the [projectionClass]
      */
     protected fun <K : Any> findByProjection(keys: Map<String, AttributeValue>, projectionClass: KClass<K>): K? {
-        val projectionMembers = projectionClass.memberProperties.map { Pair(it.name, it.returnType) }
+        val projectionMembers = projectionClass.memberProperties.map {
+            val name = if (it.hasAnnotation<Alias>()) {
+                it.findAnnotation<Alias>()!!.name
+            } else {
+                it.name
+            }
+
+            Pair(name, it.returnType)
+        }
         val klassMembers = klass.memberProperties.map { Pair(it.name, it.returnType) }
 
         val projectionExpression: MutableList<String> = mutableListOf()
@@ -360,11 +378,13 @@ open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klas
 
     override fun exists(partition: P, sort: S): Boolean = db.getItem {
         it.tableName(tableName())
-            .key(mapOf(
-                partitionKeyProperty.name to propertyToAttribute(partition),
-                sortKeyProperty.name to propertyToAttribute(sort)
-            ))
-        }.item().isNotEmpty()
+            .key(
+                mapOf(
+                    partitionKeyProperty.name to propertyToAttribute(partition),
+                    sortKeyProperty.name to propertyToAttribute(sort)
+                )
+            )
+    }.item().isNotEmpty()
 
     override fun deleteOne(partition: P) {
         throw IllegalStateException("Cannot use Partition deletion when Sort key is defined!")

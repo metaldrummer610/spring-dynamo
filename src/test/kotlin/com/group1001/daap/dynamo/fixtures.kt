@@ -49,6 +49,7 @@ data class TestEntity(
     val mapping: Map<String, TestAddress> = emptyMap()
 ) {
     data class PetAddressProjection(val petNames: List<String> = emptyList(), val addresses: List<TestAddress> = emptyList())
+    data class AliasProjection(@Alias("petNames") val names: List<String>, val missingField: String?)
 }
 
 @Throughput(10, 10)
