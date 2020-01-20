@@ -50,10 +50,6 @@ class TestEntityRegistry : ImportBeanDefinitionRegistrar, BeanFactoryAware, Appl
                 }
 
                 val beanDefinition = RootBeanDefinition(repositoryClass)
-                if (sortKey != null) {
-                    beanDefinition.constructorArgumentValues.addIndexedArgumentValue(0, it.kotlin)
-                }
-
                 // Need to set the target type so that we can autowire resolve this bean by using [SimpleKeyRepository<T>] style syntax
                 beanDefinition.setTargetType(genericType)
 
