@@ -27,6 +27,7 @@ plugins {
     id("com.github.nwillc.vplugin") version "3.0.1"
     id("io.gitlab.arturbosch.detekt") version "1.1.1"
     id("org.sonarqube") version "2.8"
+    id("com.avast.gradle.docker-compose") version "0.10.7"
     jacoco
     maven
     `maven-publish`
@@ -47,6 +48,7 @@ version = "$baseVersion.$patchVersion"
 repositories {
     jcenter()
     maven(url = "http://nexus.jx.group1001.services/repository/group1001-maven/")
+    maven(url = "https://oss.sonatype.org/content/repositories/snapshots")
     mavenLocal()
 }
 
@@ -110,6 +112,11 @@ tasks {
     }
     withType<Test> {
         useJUnitPlatform()
+
+        if (System.getenv("EC2_HOME") != null) {
+            dockerCompose.isRequiredBy(this)
+            dockerCompose.exposeAsEnvironment(this)
+        }
     }
     withType<io.gitlab.arturbosch.detekt.Detekt> {
         // Target version of the generated JVM bytecode. It is used for type resolution.
