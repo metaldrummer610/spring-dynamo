@@ -11,7 +11,7 @@ class CompositeInMemoryRepositoryTest {
 
     @BeforeEach
     fun setUp() {
-        repo = CompositeInMemoryRepository(TestEntity::class)
+        repo = CompositeInMemoryRepository()
     }
 
     @Test
@@ -42,7 +42,7 @@ class CompositeInMemoryRepositoryTest {
         assertThat(repo.findAll(another.personId)).containsOnly(test, another)
         assertThat(repo.findAll(third.personId)).containsOnly(third)
 
-        assertThat(repo.findLatest(test.personId)).isEqualToComparingFieldByField(another)
+        assertThat(repo.findLatest(test.personId, LocalDate.now())).isEqualToComparingFieldByField(test)
 
         repo.deleteOne(test.personId, test.updatedOn)
         assertThat(repo.findAll()).containsOnly(another, third)
@@ -69,6 +69,11 @@ class CompositeInMemoryRepositoryTest {
         val test = testEntity()
         repo.save(test)
 
-        assertThat(repo.asProjection(test.personId, test.updatedOn, TestEntity.PetAddressProjection::class)).isEqualToComparingFieldByField(TestEntity.PetAddressProjection(test.petNames, test.addresses))
+        assertThat(repo.asProjection(test.personId, test.updatedOn, TestEntity.PetAddressProjection::class)).isEqualToComparingFieldByField(
+            TestEntity.PetAddressProjection(
+                test.petNames,
+                test.addresses
+            )
+        )
     }
 }

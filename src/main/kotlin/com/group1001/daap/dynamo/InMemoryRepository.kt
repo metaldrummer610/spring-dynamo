@@ -3,7 +3,6 @@ package com.group1001.daap.dynamo
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KClass
-import kotlin.reflect.KProperty1
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -36,14 +35,17 @@ open class SimpleInMemoryRepository<T : Any, P> : SimpleKeyRepository<T, P> {
         val t = storage[partition] ?: return null
         return projectTo(projectionClass, t)
     }
+
+    override fun deleteAll() {
+        storage.clear()
+    }
 }
 
 @Suppress("UNCHECKED_CAST")
 @UseExperimental(ExperimentalStdlibApi::class)
-class CompositeInMemoryRepository<T : Any, P, S : Comparable<S>>(klass: KClass<T>) : CompositeKeyRepository<T, P, S> {
+class CompositeInMemoryRepository<T : Any, P, S : Comparable<S>> : CompositeKeyRepository<T, P, S> {
     private val storage: MutableMap<P, ConcurrentHashMap<S, T>> = ConcurrentHashMap()
     private val size = AtomicInteger()
-    private val sortKey: KProperty1<T, S> = klass.memberProperties.first { it.hasAnnotation<SortKey>() } as KProperty1<T, S>
 
     override fun findAllById(partition: P): List<T> = storage[partition]?.values?.toList() ?: emptyList()
 
@@ -51,7 +53,7 @@ class CompositeInMemoryRepository<T : Any, P, S : Comparable<S>>(klass: KClass<T
 
     override fun findById(partition: P, sort: S): T? = storage[partition]?.get(sort)
 
-    override fun findLatest(partition: P): T? = storage[partition]?.entries?.maxBy { it.key }?.value
+    override fun findLatest(partition: P, sort: S): T? = storage[partition]?.entries?.last { it.key >= sort }?.value
 
     override fun findAll(partition: P): List<T> = storage[partition]?.values?.toList() ?: emptyList()
 
@@ -83,6 +85,10 @@ class CompositeInMemoryRepository<T : Any, P, S : Comparable<S>>(klass: KClass<T
     }
 
     override fun count(): Int = size.get()
+
+    override fun deleteAll() {
+        storage.clear()
+    }
 
     override fun findById(partition: P): T? = throw IllegalStateException("Cannot use Partition lookup when Sort key is defined!")
 

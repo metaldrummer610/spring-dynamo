@@ -1,5 +1,6 @@
 package com.group1001.daap.dynamo
 
+import org.springframework.test.context.junit.jupiter.DisabledIf
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient

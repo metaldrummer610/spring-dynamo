@@ -56,6 +56,11 @@ interface SimpleKeyRepository<T, P> {
      * Deletes a single record identified by [partition] key
      */
     fun deleteOne(partition: P)
+
+    /**
+     * USE AT YOUR OWN RISK - THIS IS EXPENSIVE AND ONLY MEANT FOR TESTS!
+     */
+    fun deleteAll()
 }
 
 /**
@@ -70,7 +75,7 @@ interface CompositeKeyRepository<T, P, S> : SimpleKeyRepository<T, P> {
     /**
      * Finds the latest entity by [sort] key for this particular [partition]
      */
-    fun findLatest(partition: P): T?
+    fun findLatest(partition: P, sort: S): T?
 
     /**
      * Finds all the entities for this [partition]
@@ -145,9 +150,17 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
         }
     }
 
+    override fun deleteAll() {
+        db.scan { it.tableName(tableName()) }.items().forEach {
+            val partition = attributeToProperty(it[partitionKeyProperty.name]!!, partitionKeyProperty.returnType.javaType) as P
+            deleteOne(partition)
+        }
+    }
+
     protected fun tableName() = klass.simpleName
 
-    protected fun findByKeys(keys: Map<String, AttributeValue>): T? = db.getItem { it.tableName(tableName()).key(keys) }.item()?.let { buildInstance(it, klass) }
+    protected fun findByKeys(keys: Map<String, AttributeValue>): T? =
+        db.getItem { it.tableName(tableName()).key(keys) }.item()?.let { buildInstance(it, klass) }
 
     /**
      * Takes an object [r] and converts it into a [Map] of Dynamo values
@@ -240,7 +253,7 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
     /**
      * Deserializes a Dynamo property and converts it into something useful
      */
-    private fun attributeToProperty(attr: AttributeValue, prop: Type): Any? {
+    protected fun attributeToProperty(attr: AttributeValue, prop: Type): Any? {
         if (attr.isNull()) {
             return null
         }
@@ -326,14 +339,20 @@ open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klas
         return findByKeys(keys)
     }
 
-    override fun findLatest(partition: P): T? = db.query {
+    override fun findLatest(partition: P, sort: S): T? = db.query {
         it.tableName(tableName())
             .select(Select.ALL_ATTRIBUTES)
             .limit(1)
             .scanIndexForward(false)
-            .keyConditionExpression("#PARTITION = :partition")
-            .expressionAttributeNames(mapOf("#PARTITION" to partitionKeyProperty.name))
-            .expressionAttributeValues(mapOf(":partition" to propertyToAttribute(partition)))
+            .keyConditionExpression("#PARTITION = :partition and #SORT <= :sort")
+            .expressionAttributeNames(mapOf(
+                "#PARTITION" to partitionKeyProperty.name,
+                "#SORT" to sortKeyProperty.name
+            ))
+            .expressionAttributeValues(mapOf(
+                ":partition" to propertyToAttribute(partition),
+                ":sort" to propertyToAttribute(sort)
+            ))
     }.items().firstOrNull()?.let { buildInstance(it, klass) }
 
     override fun findAll(partition: P): List<T> = db.query {
@@ -399,6 +418,14 @@ open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klas
                         sortKeyProperty.name to propertyToAttribute(sort)
                     )
                 )
+        }
+    }
+
+    override fun deleteAll() {
+        db.scan { it.tableName(tableName()) }.items().forEach {
+            val partition = attributeToProperty(it[partitionKeyProperty.name]!!, partitionKeyProperty.returnType.javaType) as P
+            val sort = attributeToProperty(it[sortKeyProperty.name]!!, sortKeyProperty.returnType.javaType) as S
+            deleteOne(partition, sort)
         }
     }
 }

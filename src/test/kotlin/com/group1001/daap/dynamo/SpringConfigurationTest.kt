@@ -2,10 +2,8 @@ package com.group1001.daap.dynamo
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
-import org.junit.jupiter.api.condition.DisabledIfSystemProperty
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Bean
@@ -22,7 +20,6 @@ import java.net.URI
 import java.time.LocalDate
 import java.util.*
 
-@Disabled
 @SpringBootTest(classes = [DynamoDBConfig::class])
 @Import(TestConfiguration::class)
 class SpringConfigurationTest {
@@ -37,6 +34,14 @@ class SpringConfigurationTest {
 
     @Autowired
     lateinit var mvaRateRepository: CompositeKeyRepository<MvaRate, String, LocalDate>
+
+    @BeforeEach
+    internal fun setUp() {
+        testRepository.deleteAll()
+        fooRepository.deleteAll()
+        barRepository.deleteAll()
+        mvaRateRepository.deleteAll()
+    }
 
     @Test
     fun listEntities() {
@@ -119,10 +124,26 @@ class SpringConfigurationTest {
             mvaRateRepository.save(entity)
         }
 
-        val rate = mvaRateRepository.findLatest("MOODYS")
+        val rate = mvaRateRepository.findLatest("MOODYS", LocalDate.now())
         assertThat(rate).isNotNull
-        assertThat(rate!!.date).isEqualTo(LocalDate.now().minusDays(1.toLong()))
+        assertThat(rate!!.date).isEqualTo(LocalDate.now().minusDays(1))
         assertThat(rate.rate).isEqualTo(1.toDouble())
+    }
+
+    @Test
+    fun `should be able to find an entity at any point in their timeline`() {
+        for (i in 1..10) {
+            val entity = MvaRate("MOODYS", LocalDate.now().minusDays(i.toLong()), i.toDouble())
+            mvaRateRepository.save(entity)
+        }
+
+        var rate = mvaRateRepository.findLatest("MOODYS", LocalDate.now().minusDays(12))
+        assertThat(rate).isNull()
+
+        rate = mvaRateRepository.findLatest("MOODYS", LocalDate.now().minusDays(8))
+        assertThat(rate).isNotNull
+        assertThat(rate!!.date).isEqualTo(LocalDate.now().minusDays(8))
+        assertThat(rate.rate).isEqualTo(8.toDouble())
     }
 
     @Test
