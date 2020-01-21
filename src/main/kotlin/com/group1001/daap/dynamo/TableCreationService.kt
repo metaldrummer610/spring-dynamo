@@ -10,7 +10,7 @@ import java.time.Duration
 import javax.annotation.PostConstruct
 
 class TableCreationService(private val properties: DynamoProperties, private val client: DynamoDbClient) {
-    private val entityClasses = Reflections(properties.classPackage).getTypesAnnotatedWith(Throughput::class.java)
+    private val entityClasses = Reflections(properties.classPackage).getTypesAnnotatedWith(Throughput::class.java, true)
     private val classNames = entityClasses.map { it.simpleName }
 
     @PostConstruct

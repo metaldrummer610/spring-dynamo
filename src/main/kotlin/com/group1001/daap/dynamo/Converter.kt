@@ -124,6 +124,7 @@ object TypeRegistry {
         addNumberConverter { it.n().toFloat() }
         addSimpleConverter<UUID>({ id, b -> b.s(id.toString()) }, { UUID.fromString(it.s()) })
         addSimpleConverter<String>({ s, b -> b.s(s) }, { it.s() })
+        addSimpleConverter<Boolean>({ bool, b -> b.bool(bool) }, { it.bool() })
         addSimpleConverter<ByteArray>({ bs, b -> b.bs(SdkBytes.fromByteArray(bs)) }, { it.b().asByteArray() })
         addSimpleConverter<LocalDate>({ date, b -> b.s(date.toString()) }, { LocalDate.parse(it.s()) })
         addSimpleConverter<LocalDateTime>({ date, b -> b.s(date.toString()) }, { LocalDateTime.parse(it.s()) })

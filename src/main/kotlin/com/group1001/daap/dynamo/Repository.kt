@@ -170,21 +170,27 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
             it as KProperty1<R, *>
             val value = it.get(r)
             it.name to propertyToAttribute(value)
-        }
+        }.plus("_type" to AttributeValue.builder().s(r::class.qualifiedName).build())
     }
 
     /**
      * Builds an instance of a [klass] based on the contents of the [item] map
      */
-    protected fun <R : Any> buildInstance(item: Map<String, AttributeValue>, klass: KClass<R>): R? {
+    protected fun <R : Any> buildInstance(item: Map<String, AttributeValue>, kClass: KClass<R>): R? {
         // If we have an empty map, assume it's null
         if (item.isEmpty()) {
             return null
         }
 
+        val klass: KClass<R> = if (item.containsKey("_type")) {
+            Class.forName(item.getValue("_type").s()).kotlin as KClass<R>
+        } else {
+            kClass
+        }
+
         // Deserialize all the fields and store them for future processing
         val fields = mutableMapOf<String, Any?>() // Field name -> value
-        item.forEach { (key, value) ->
+        item.filterNot { it.key == "_type" }.forEach { (key, value) ->
             val prop = klass.memberProperties.first {
                 it.findAnnotation<Alias>()?.name == key || it.name == key
             }
@@ -345,14 +351,18 @@ open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klas
             .limit(1)
             .scanIndexForward(false)
             .keyConditionExpression("#PARTITION = :partition and #SORT <= :sort")
-            .expressionAttributeNames(mapOf(
-                "#PARTITION" to partitionKeyProperty.name,
-                "#SORT" to sortKeyProperty.name
-            ))
-            .expressionAttributeValues(mapOf(
-                ":partition" to propertyToAttribute(partition),
-                ":sort" to propertyToAttribute(sort)
-            ))
+            .expressionAttributeNames(
+                mapOf(
+                    "#PARTITION" to partitionKeyProperty.name,
+                    "#SORT" to sortKeyProperty.name
+                )
+            )
+            .expressionAttributeValues(
+                mapOf(
+                    ":partition" to propertyToAttribute(partition),
+                    ":sort" to propertyToAttribute(sort)
+                )
+            )
     }.items().firstOrNull()?.let { buildInstance(it, klass) }
 
     override fun findAll(partition: P): List<T> = db.query {

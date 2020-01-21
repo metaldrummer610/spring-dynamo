@@ -27,7 +27,7 @@ class EntityRegistry : ImportBeanDefinitionRegistrar, BeanFactoryAware {
         // Iterate over all the Throughput annotated classes in the given paths
         // and register a SimpleDynamoRepository instance for them
         Reflections(properties.classPackage)
-            .getTypesAnnotatedWith(Throughput::class.java)
+            .getTypesAnnotatedWith(Throughput::class.java, true)
             .filterNot { registry.isBeanNameInUse(beanName(it)) }
             .forEach {
                 logger.debug("Registering entity ${it.simpleName}")
