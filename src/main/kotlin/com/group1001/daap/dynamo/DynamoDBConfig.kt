@@ -41,7 +41,7 @@ class DynamoProperties(
 }
 
 @Configuration
-@Import(TestEntityRegistry::class)
+@Import(EntityRegistry::class)
 @EnableConfigurationProperties(DynamoProperties::class)
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
 @Profile("test")
