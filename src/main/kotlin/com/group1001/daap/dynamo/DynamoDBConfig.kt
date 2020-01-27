@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Profile
 import org.springframework.core.Ordered
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import java.net.URI
@@ -29,8 +30,10 @@ class DynamoDBConfig(val properties: DynamoProperties) {
         return if (url != null) {
             DynamoDbClient.builder()
                 .endpointOverride(URI(url)) // These credentials are hard coded because that's what the docker-compose expects
-                .credentialsProvider { AwsBasicCredentials.create("local", "local") }
-                .region(Region.US_EAST_2)
+                .credentialsProvider {
+                    StaticCredentialsProvider.create(AwsBasicCredentials.create("local", "local")).resolveCredentials()
+                }
+                .region(Region.US_EAST_1)
                 .build()
         } else {
             DynamoDbClient.create()
