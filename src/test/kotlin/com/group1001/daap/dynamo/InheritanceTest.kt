@@ -1,6 +1,7 @@
 package com.group1001.daap.dynamo
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -8,6 +9,7 @@ import org.springframework.context.annotation.Import
 import java.time.OffsetDateTime
 import java.util.*
 
+@Disabled
 @SpringBootTest(classes = [DynamoDBConfig::class])
 @Import(TestConfiguration::class)
 class InheritanceTest {
