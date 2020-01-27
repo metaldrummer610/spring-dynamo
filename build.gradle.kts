@@ -113,10 +113,10 @@ tasks {
     withType<Test> {
         useJUnitPlatform()
 
-        if (System.getenv("EC2_HOME") != null) {
-            dockerCompose.isRequiredBy(this)
-            dockerCompose.exposeAsEnvironment(this)
-        }
+//        if (System.getenv("EC2_HOME") != null) {
+//            dockerCompose.isRequiredBy(this)
+//            dockerCompose.exposeAsEnvironment(this)
+//        }
     }
     withType<io.gitlab.arturbosch.detekt.Detekt> {
         // Target version of the generated JVM bytecode. It is used for type resolution.
