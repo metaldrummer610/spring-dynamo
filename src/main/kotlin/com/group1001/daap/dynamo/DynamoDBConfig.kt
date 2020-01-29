@@ -27,7 +27,7 @@ class DynamoDBConfig(val properties: DynamoProperties) {
     fun dynamoClient(): DynamoDbClient {
         // If we have an override specified, use it, otherwise, pull from the environment
         val url = properties.endpointOverride
-        return if (url != null) {
+        return if (url != "") {
             DynamoDbClient.builder()
                 .endpointOverride(URI(url)) // These credentials are hard coded because that's what the docker-compose expects
                 .credentialsProvider {
@@ -50,7 +50,7 @@ class DynamoDBConfig(val properties: DynamoProperties) {
 class DynamoProperties(
     val tableCreationMode: TableCreationMode,
     val classPackage: String,
-    val endpointOverride: String? = null
+    val endpointOverride: String = ""
 ) {
     enum class TableCreationMode {
         NONE,
