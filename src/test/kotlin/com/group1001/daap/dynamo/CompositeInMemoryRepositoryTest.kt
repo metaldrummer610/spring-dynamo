@@ -7,11 +7,13 @@ import java.time.LocalDate
 import java.util.*
 
 class CompositeInMemoryRepositoryTest {
-    lateinit var repo: CompositeInMemoryRepository<TestEntity, UUID, LocalDate>
+    private lateinit var repo: CompositeInMemoryRepository<TestEntity, UUID, LocalDate>
+    private lateinit var mvaRateRepository: CompositeInMemoryRepository<MvaRate, String, LocalDate>
 
     @BeforeEach
     fun setUp() {
         repo = CompositeInMemoryRepository()
+        mvaRateRepository = CompositeInMemoryRepository()
     }
 
     @Test
@@ -47,6 +49,19 @@ class CompositeInMemoryRepositoryTest {
         repo.deleteOne(test.personId, test.updatedOn)
         assertThat(repo.findAll()).containsOnly(another, third)
         assertThat(repo.findAll(test.personId)).containsOnly(another)
+    }
+
+    @Test
+    fun `should find latest`() {
+        for (i in 1..5) {
+            val entity = MvaRate("MOODYS", LocalDate.now().minusDays(i.toLong()), i.toDouble())
+            mvaRateRepository.save(entity)
+        }
+
+        val rate = mvaRateRepository.findLatest("MOODYS", LocalDate.now())
+        assertThat(rate).isNotNull
+        assertThat(rate!!.date).isEqualTo(LocalDate.now().minusDays(1))
+        assertThat(rate.rate).isEqualTo(1.toDouble())
     }
 
     @Test

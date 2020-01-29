@@ -53,7 +53,7 @@ class CompositeInMemoryRepository<T : Any, P, S : Comparable<S>> : CompositeKeyR
 
     override fun findById(partition: P, sort: S): T? = storage[partition]?.get(sort)
 
-    override fun findLatest(partition: P, sort: S): T? = storage[partition]?.entries?.lastOrNull { it.key <= sort }?.value
+    override fun findLatest(partition: P, sort: S): T? = storage[partition]?.entries?.sortedBy { it.key }?.lastOrNull { it.key <= sort }?.value
 
     override fun findAll(partition: P): List<T> = storage[partition]?.values?.toList() ?: emptyList()
 
