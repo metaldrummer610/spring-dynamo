@@ -241,6 +241,14 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
     protected fun propertyToAttribute(value: Any?): AttributeValue {
         val builder = AttributeValue.builder()
         return when (value) {
+            // Thanks Amazon... for not supporting a damn empty string as a value since 2012
+            is String -> {
+                when (value) {
+                    null -> builder.m(mapOf("null" to AttributeValue.builder().nul(true).build())).build()
+                    "" -> builder.m(mapOf("empty" to AttributeValue.builder().nul(true).build())).build()
+                    else -> builder.s(value).build()
+                }
+            }
             null -> builder.nul(true).build()
             is List<*> -> builder.l(value.map { propertyToAttribute(it) }).build()
             is Map<*, *> -> builder.m(value.map { it.key.toString() to propertyToAttribute(it.value) }.associate { it }).build()
@@ -281,6 +289,16 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
         if (prop.isEnum) {
             prop as Class<Enum<*>>
             return prop.enumConstants.firstOrNull { it.name == attr.s() }
+        }
+
+        // Thanks Amazon... for not supporting a damn empty string as a value since 2012
+        if (String::class.java == prop) {
+            val m = attr.m()
+            return when {
+                m.containsKey("null") -> null
+                m.containsKey("empty") -> ""
+                else -> attr.s()
+            }
         }
 
         // Otherwise check the registry for a converter and process it

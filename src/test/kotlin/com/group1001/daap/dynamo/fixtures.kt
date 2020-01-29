@@ -54,7 +54,7 @@ data class TestEntity(
 }
 
 @Throughput(10, 10)
-data class Foo(@PartitionKey val id: UUID = UUID.randomUUID(), val name: String = "a") {
+data class Foo(@PartitionKey val id: UUID = UUID.randomUUID(), val name: String = "") {
     data class FooProjection(val name: String)
 }
 
