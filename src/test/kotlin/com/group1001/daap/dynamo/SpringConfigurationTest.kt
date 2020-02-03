@@ -98,6 +98,14 @@ class SpringConfigurationTest {
     }
 
     @Test
+    fun `should work with sets`() {
+        val entity = Bar(set= setOf("a", "b", "c"))
+        barRepository.save(entity)
+
+        assertThat(barRepository.findById(entity.id, entity.updatedOn)).isEqualToComparingFieldByField(entity)
+    }
+
+    @Test
     fun `partition key should allow querying between two values`() {
         for (i in 1..5) {
             val entity = MvaRate("MOODYS", LocalDate.now().minusDays(i.toLong()), i.toDouble())

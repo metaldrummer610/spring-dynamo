@@ -251,6 +251,7 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
             }
             null -> builder.nul(true).build()
             is List<*> -> builder.l(value.map { propertyToAttribute(it) }).build()
+            is Set<*> -> builder.l(value.map { propertyToAttribute(it) }).build()
             is Map<*, *> -> builder.m(value.map { it.key.toString() to propertyToAttribute(it.value) }.associate { it }).build()
             is Enum<*> -> builder.s(value.name).build()
             else -> {
@@ -280,6 +281,9 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
                 List::class.java -> attr.l().map {
                     attributeToProperty(it, prop.actualTypeArguments[0])
                 }
+                Set::class.java -> attr.l().map {
+                    attributeToProperty(it, prop.actualTypeArguments[0])
+                }.toSet()
                 else -> null
             }
         } else if (prop !is Class<*>) {

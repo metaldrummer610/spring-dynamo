@@ -64,7 +64,8 @@ data class Bar(
     @SortKey val updatedOn: LocalDate = LocalDate.now(),
     @LocalSecondaryIndex val other: Int = 0,
     val mapping: Map<String, String>? = null,
-    val list: List<String>? = null
+    val list: List<String>? = null,
+    val set: Set<String>? = null
 )
 
 @Throughput(10, 10)
