@@ -32,6 +32,18 @@ interface SimpleKeyRepository<T, P> {
     fun findAllById(partition: P): List<T>
 
     /**
+     * Finds all the entities by searching the [index] using the [partition] and [sort] keys.
+     * Sort is a nullable field, as GSIs do not require one
+     */
+    fun <A> findByGlobalSecondaryIndex(index: String, partition: A, sort: Any? = null): List<T>
+
+    /**
+     * Finds all the entities by searching the [index] using the [partition] and [sort] keys.
+     * Sort is not nullable because a Local Secondary Index requires one
+     */
+    fun <B> findByLocalSecondaryIndex(index: String, partition: P, sort: B): List<T>
+
+    /**
      * Finds all the entities in the repository
      */
     fun findAll(): List<T>
@@ -129,6 +141,66 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
             .expressionAttributeNames(mapOf("#PARTITION" to partitionKeyProperty.name))
             .expressionAttributeValues(mapOf(":KEY" to propertyToAttribute(partition)))
     }.items().mapNotNull { buildInstance(it, klass) }
+
+    override fun <A> findByGlobalSecondaryIndex(index: String, partition: A, sort: Any?): List<T> {
+        val gsiProperty = requireNotNull(klass.memberProperties.firstOrNull { it.hasAnnotation<GlobalSecondaryIndex>() && it.name == index }) {
+            "Cannot find a Global Secondary Index property named $index"
+        }
+
+        val annotation = gsiProperty.findAnnotation<GlobalSecondaryIndex>()!!
+
+        val keyCondition: String
+        val expressionAttributes: Map<String, String>
+        val expressionValues: Map<String, AttributeValue>
+
+        if (sort == null) {
+            keyCondition = "#PARTITION = :partition"
+            expressionAttributes = mapOf("#PARTITION" to gsiProperty.name)
+            expressionValues = mapOf(":partition" to propertyToAttribute(partition))
+        } else {
+            keyCondition = "#PARTITION = :partition and #SORT = :sort"
+            expressionAttributes = mapOf(
+                "#PARTITION" to gsiProperty.name,
+                "#SORT" to annotation.sortKey
+            )
+            expressionValues = mapOf(
+                ":partition" to propertyToAttribute(partition),
+                ":sort" to propertyToAttribute(sort)
+            )
+        }
+
+        return db.query {
+            it.tableName(tableName())
+                .indexName(index)
+                .keyConditionExpression(keyCondition)
+                .expressionAttributeNames(expressionAttributes)
+                .expressionAttributeValues(expressionValues)
+        }.items().mapNotNull { buildInstance(it, klass) }
+    }
+
+    override fun <B> findByLocalSecondaryIndex(index: String, partition: P, sort: B): List<T> {
+        val lsiProperty = requireNotNull(klass.memberProperties.firstOrNull { it.hasAnnotation<LocalSecondaryIndex>() && it.name == index }) {
+            "Cannot find a Global Secondary Index property named $index"
+        }
+
+        return db.query {
+            it.tableName(tableName())
+                .indexName(index)
+                .keyConditionExpression("#PARTITION = :partition and #SORT = :sort")
+                .expressionAttributeNames(
+                    mapOf(
+                        "#PARTITION" to partitionKeyProperty.name,
+                        "#SORT" to lsiProperty.name
+                    )
+                )
+                .expressionAttributeValues(
+                    mapOf(
+                        ":partition" to propertyToAttribute(partition),
+                        ":sort" to propertyToAttribute(sort)
+                    )
+                )
+        }.items().mapNotNull { buildInstance(it, klass) }
+    }
 
     override fun findAll(): List<T> = db.scan { it.tableName(tableName()) }.items().mapNotNull { buildInstance(it, klass) }
 

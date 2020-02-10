@@ -37,6 +37,9 @@ class SpringConfigurationTest {
     @Autowired
     lateinit var mvaRateRepository: CompositeKeyRepository<MvaRate, String, LocalDate>
 
+    @Autowired
+    lateinit var userRepository: SimpleKeyRepository<User, UUID>
+
     @BeforeEach
     internal fun setUp() {
         testRepository.deleteAll()
@@ -99,7 +102,7 @@ class SpringConfigurationTest {
 
     @Test
     fun `should work with sets`() {
-        val entity = Bar(set= setOf("a", "b", "c"))
+        val entity = Bar(set = setOf("a", "b", "c"))
         barRepository.save(entity)
 
         assertThat(barRepository.findById(entity.id, entity.updatedOn)).isEqualToComparingFieldByField(entity)
@@ -214,6 +217,31 @@ class SpringConfigurationTest {
         testRepository.save(entity)
         assertThat(testRepository.asProjection(entity.personId, entity.updatedOn, TestEntity.AliasProjection::class))
             .isEqualToComparingFieldByField(TestEntity.AliasProjection(entity.petNames, null))
+    }
+
+    @Test
+    fun `should be able to look up entities using a secondary index`() {
+        val id = UUID.randomUUID()
+        for (i in 1..5) {
+            val entity = TestEntity(id, LocalDate.now().minusDays(i.toLong()), emptyList(), emptyList(), i)
+            testRepository.save(entity)
+        }
+
+        assertThat(testRepository.findByLocalSecondaryIndex("other", id, 3)).hasSize(1).first().extracting { it.other }.isEqualTo(3)
+    }
+
+    @Test
+    fun `should be able to look up entities using a global secondary index`() {
+        userRepository.save(User(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "asdf"))
+        userRepository.save(User(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "asdf"))
+
+        val id = UUID.randomUUID()
+        val otherId = UUID.randomUUID()
+        val thirdId = UUID.randomUUID()
+        userRepository.save(User(id, otherId, thirdId, "asdf"))
+
+        assertThat(userRepository.findByGlobalSecondaryIndex("otherId", otherId)).hasSize(1).first().isEqualTo(User(id, otherId, thirdId, "asdf"))
+        assertThat(userRepository.findByGlobalSecondaryIndex("thirdId", thirdId, "asdf")).hasSize(1).first().isEqualTo(User(id, otherId, thirdId, "asdf"))
     }
 }
 

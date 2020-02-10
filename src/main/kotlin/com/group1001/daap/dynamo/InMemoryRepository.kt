@@ -3,6 +3,7 @@ package com.group1001.daap.dynamo
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KClass
+import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -11,12 +12,28 @@ import kotlin.reflect.jvm.javaField
 
 @Suppress("UNCHECKED_CAST")
 @UseExperimental(ExperimentalStdlibApi::class)
-open class SimpleInMemoryRepository<T : Any, P> : SimpleKeyRepository<T, P> {
+open class SimpleInMemoryRepository<T : Any, P : Any> : SimpleKeyRepository<T, P> {
     private val storage = ConcurrentHashMap<P, T>()
 
     override fun findById(partition: P): T? = storage[partition]
 
     override fun findAllById(partition: P): List<T> = listOfNotNull(storage[partition])
+
+    override fun <A> findByGlobalSecondaryIndex(index: String, partition: A, sort: Any?): List<T> {
+        val values = storage.values
+            .filter { it.javaClass.getField(index).get(it) == partition }
+
+        @Suppress("DuplicatedCode")
+        if (sort != null && values.isNotEmpty()) {
+            val gsi = values.first().javaClass.kotlin.memberProperties.first { it.name == index }.findAnnotation<GlobalSecondaryIndex>()!!
+            return values.filter { it.javaClass.getField(gsi.sortKey).get(it) == sort }
+        }
+
+        return values
+    }
+
+    override fun <B> findByLocalSecondaryIndex(index: String, partition: P, sort: B): List<T> =
+        storage.entries.filter { it.key.javaClass.getField(index).get(it) == sort }.map { it.value }
 
     override fun findAll(): List<T> = storage.values.toList()
 
@@ -54,6 +71,21 @@ class CompositeInMemoryRepository<T : Any, P, S : Comparable<S>> : CompositeKeyR
     override fun findById(partition: P, sort: S): T? = storage[partition]?.get(sort)
 
     override fun findLatest(partition: P, sort: S): T? = storage[partition]?.entries?.sortedBy { it.key }?.lastOrNull { it.key <= sort }?.value
+
+    override fun <A> findByGlobalSecondaryIndex(index: String, partition: A, sort: Any?): List<T> {
+        val values = storage.flatMap { it.value.values }
+            .filter { it.javaClass.getField(index).get(it) == partition }
+
+        if (sort != null && values.isNotEmpty()) {
+            val gsi = values.first().javaClass.kotlin.memberProperties.first { it.name == index }.findAnnotation<GlobalSecondaryIndex>()!!
+            return values.filter { it.javaClass.getField(gsi.sortKey).get(it) == sort }
+        }
+
+        return values
+    }
+
+    override fun <B> findByLocalSecondaryIndex(index: String, partition: P, sort: B): List<T> =
+        storage[partition]?.entries?.filter { it.key.javaClass.getField(index).get(it) == sort }?.map { it.value } ?: emptyList()
 
     override fun findAll(partition: P): List<T> = storage[partition]?.values?.toList() ?: emptyList()
 

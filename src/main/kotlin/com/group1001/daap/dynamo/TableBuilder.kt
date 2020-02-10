@@ -31,12 +31,13 @@ object TableBuilder {
         val rangeKeyProperty = properties.firstOrNull { it.hasAnnotation<SortKey>() }
         val secondaryIndexes = properties.filter { it.hasAnnotation<LocalSecondaryIndex>() }
         val globalIndexes = properties.filter { it.hasAnnotation<GlobalSecondaryIndex>() }
+        val globalIndexSortKeys = globalIndexes.map { it.findAnnotation<GlobalSecondaryIndex>()!!.sortKey }.filter { it != "" }.map { p -> properties.first { it.name == p } }
 
         val createRequest = CreateTableRequest.builder()
             .provisionedThroughput { it.readCapacityUnits(throughput.read).writeCapacityUnits(throughput.write) }
             .tableName(kClass.simpleName)
             .keySchema(makePrimaryKey(hashKeyProperty.name, rangeKeyProperty?.name))
-            .attributeDefinitions(makeAttributes(hashKeyProperty, rangeKeyProperty, secondaryIndexes, globalIndexes))
+            .attributeDefinitions(makeAttributes(hashKeyProperty, rangeKeyProperty, secondaryIndexes, globalIndexes, globalIndexSortKeys))
 
         val localSecondaryIndexes = makeSecondaryIndexes(hashKeyProperty, secondaryIndexes)
         if (localSecondaryIndexes.isNotEmpty()) {
@@ -101,7 +102,8 @@ object TableBuilder {
         hashKeyProperty: KProperty1<T, *>,
         rangeKeyProperty: KProperty1<T, *>?,
         secondaryIndexes: List<KProperty1<T, *>>,
-        globalSecondaryIndexes: List<KProperty1<T, *>>
+        globalSecondaryIndexes: List<KProperty1<T, *>>,
+        globalIndexSortKeys: List<KProperty1<T, *>>
     ): List<AttributeDefinition> {
         fun makeAttribute(name: String, type: Type) =
             AttributeDefinition.builder().attributeName(name).attributeType(determineAttributeType(type)).build()
@@ -119,6 +121,10 @@ object TableBuilder {
         }
 
         globalSecondaryIndexes.forEach {
+            attributes.add(makeAttribute(it.name, it.returnType.javaType))
+        }
+
+        globalIndexSortKeys.forEach {
             attributes.add(makeAttribute(it.name, it.returnType.javaType))
         }
 

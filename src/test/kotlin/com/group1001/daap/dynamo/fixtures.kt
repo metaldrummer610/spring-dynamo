@@ -80,3 +80,11 @@ enum class RateSource {
     MOODYS,
     CUSTOM
 }
+
+@Throughput(10, 10)
+data class User(
+    @PartitionKey val id: UUID,
+    @GlobalSecondaryIndex(10, 10) val otherId: UUID,
+    @GlobalSecondaryIndex(10, 10, "name") val thirdId: UUID,
+    val name: String
+)
