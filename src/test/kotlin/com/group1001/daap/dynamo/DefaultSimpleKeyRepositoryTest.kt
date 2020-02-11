@@ -42,7 +42,7 @@ class DefaultSimpleKeyRepositoryTest {
 
     @Test
     fun `should save an entity with a map and find it`() {
-        val entity = testEntity(mapping = mapOf("foo" to TestAddress("123"), "bar" to TestAddress("234")))
+        val entity = testEntity(mapping = mapOf("foo" to TestEntity.TestAddress("123"), "bar" to TestEntity.TestAddress("234")))
 
         repo.save(entity)
         val foundEntity = repo.findById(entity.personId, entity.updatedOn)

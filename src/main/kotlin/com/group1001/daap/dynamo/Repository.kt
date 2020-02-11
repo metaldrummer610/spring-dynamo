@@ -242,7 +242,7 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
             it as KProperty1<R, *>
             val value = it.get(r)
             it.name to propertyToAttribute(value)
-        }.plus("_type" to AttributeValue.builder().s(r::class.qualifiedName).build())
+        }.plus("_type" to AttributeValue.builder().s(r::class.javaObjectType.name).build())
     }
 
     /**

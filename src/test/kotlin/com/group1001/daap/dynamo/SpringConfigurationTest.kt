@@ -203,7 +203,7 @@ class SpringConfigurationTest {
 
     @Test
     fun `should be able to ask for a projection of an entity with both a partition and sort key`() {
-        val entity = testEntity().copy(petNames = listOf("foo", "bar"), addresses = listOf(TestAddress("132"), TestAddress("4523")))
+        val entity = testEntity().copy(petNames = listOf("foo", "bar"), addresses = listOf(TestEntity.TestAddress("132"), TestEntity.TestAddress("4523")))
         testRepository.save(entity)
         val expected = TestEntity.PetAddressProjection(entity.petNames, entity.addresses)
 

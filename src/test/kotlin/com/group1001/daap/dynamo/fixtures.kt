@@ -1,6 +1,5 @@
 package com.group1001.daap.dynamo
 
-import org.springframework.test.context.junit.jupiter.DisabledIf
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
@@ -18,12 +17,12 @@ fun testEntity(
     id: UUID = UUID.randomUUID(),
     localDate: LocalDate = LocalDate.now(),
     nullable: String? = null,
-    mapping: Map<String, TestAddress> = emptyMap()
+    mapping: Map<String, TestEntity.TestAddress> = emptyMap()
 ) = TestEntity(
     id,
     localDate,
     listOf("foo", "bar"),
-    listOf(TestAddress("123"), TestAddress("234")),
+    listOf(TestEntity.TestAddress("123"), TestEntity.TestAddress("234")),
     12345,
     nullable,
     mapping
@@ -37,8 +36,6 @@ fun setupDB() {
     TableBuilder.tableForEntity<TestEntity>(dbClient)
 }
 
-data class TestAddress(val street: String)
-
 @Throughput(10, 10)
 data class TestEntity(
     @PartitionKey val personId: UUID,
@@ -49,6 +46,8 @@ data class TestEntity(
     val nullable: String? = null,
     val mapping: Map<String, TestAddress> = emptyMap()
 ) {
+    data class TestAddress(val street: String)
+
     data class PetAddressProjection(val petNames: List<String> = emptyList(), val addresses: List<TestAddress> = emptyList())
     data class AliasProjection(@Alias("petNames") val names: List<String>, val missingField: String?)
 }
