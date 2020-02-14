@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Import
 import java.time.OffsetDateTime
 import java.util.*
 
-@Disabled
 @SpringBootTest(classes = [DynamoDBConfig::class])
 @Import(TestConfiguration::class)
 class InheritanceTest {
@@ -44,7 +43,7 @@ class InheritanceTest {
     }
 }
 
-@Throughput(1, 1)
+@DynamoTable
 interface Base {
     @PartitionKey val id: UUID
     @SortKey val asOf: OffsetDateTime
@@ -62,7 +61,7 @@ data class OtherChild(
     override val asOf: OffsetDateTime
 ): Base
 
-@Throughput(1, 1)
+@DynamoTable
 open class Animal(
     @PartitionKey val name: String
 )

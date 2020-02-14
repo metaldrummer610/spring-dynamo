@@ -21,7 +21,6 @@ import java.net.URI
 import java.time.LocalDate
 import java.util.*
 
-@Disabled
 @SpringBootTest(classes = [DynamoDBConfig::class])
 @Import(TestConfiguration::class)
 class SpringConfigurationTest {

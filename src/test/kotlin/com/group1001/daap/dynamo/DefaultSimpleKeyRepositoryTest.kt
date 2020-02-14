@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test
 import java.time.LocalDate
 import java.util.*
 
-@Disabled
 class DefaultSimpleKeyRepositoryTest {
     private val repo = DefaultCompositeKeyRepository<TestEntity, UUID, LocalDate>(dbClient, TestEntity::class)
 

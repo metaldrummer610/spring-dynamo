@@ -1,6 +1,6 @@
 package com.group1001.daap.dynamo
 
-import org.awaitility.Awaitility
+import org.awaitility.Awaitility.*
 import org.reflections.Reflections
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -10,7 +10,7 @@ import java.time.Duration
 import javax.annotation.PostConstruct
 
 class TableCreationService(private val properties: DynamoProperties, private val client: DynamoDbClient) {
-    private val entityClasses = Reflections(properties.classPackage).getTypesAnnotatedWith(Throughput::class.java, true)
+    private val entityClasses = Reflections(properties.classPackage).getTypesAnnotatedWith(DynamoTable::class.java, true)
     private val classNames = entityClasses.map { it.simpleName }
 
     @PostConstruct
@@ -29,11 +29,11 @@ class TableCreationService(private val properties: DynamoProperties, private val
     private fun create() {
         logger.debug("Creating tables -> $classNames")
         entityClasses.forEach {
-            TableBuilder.tableForEntity(client, it.kotlin)
+            TableBuilder.tableForEntity(client, properties, it.kotlin)
         }
 
         var remainingTables = classNames
-        Awaitility.await().pollInSameThread().pollInterval(Duration.ofSeconds(1)).until {
+        await().pollInSameThread().pollInterval(Duration.ofSeconds(1)).until {
             logger.debug("Polling for created tables...")
 
             remainingTables = remainingTables.filterNot { t ->
@@ -55,7 +55,7 @@ class TableCreationService(private val properties: DynamoProperties, private val
             client.deleteTable { builder -> builder.tableName(it) }
         }
 
-        Awaitility.await().pollInSameThread().pollInterval(Duration.ofSeconds(1)).until {
+        await().pollInSameThread().pollInterval(Duration.ofSeconds(1)).until {
             logger.debug("Polling for deleted tables...")
             client.listTables().tableNames().none { classNames.contains(it) }
         }

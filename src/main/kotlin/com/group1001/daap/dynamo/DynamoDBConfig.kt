@@ -48,15 +48,25 @@ class DynamoDBConfig(val properties: DynamoProperties) {
 @ConstructorBinding
 @ConfigurationProperties(prefix = "com.group1001.dynamo")
 class DynamoProperties(
-    val tableCreationMode: TableCreationMode,
-    val classPackage: String,
-    val endpointOverride: String = ""
+    val tableCreationMode: TableCreationMode = TableCreationMode.NONE,
+
+    /**
+     * If this is empty, the entire classpath will be scanned!
+     */
+    val classPackage: String = "",
+    val endpointOverride: String = "",
+    val sse: ServerSideEncryption = ServerSideEncryption()
 ) {
     enum class TableCreationMode {
         NONE,
         CREATE,
         VALIDATE
     }
+
+    data class ServerSideEncryption(
+        val type: SSEType = SSEType.NONE,
+        val kmsMasterKey: String = ""
+    )
 }
 
 @Configuration

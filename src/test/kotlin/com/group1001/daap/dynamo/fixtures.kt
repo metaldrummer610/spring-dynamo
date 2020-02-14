@@ -36,7 +36,7 @@ fun setupDB() {
     TableBuilder.tableForEntity<TestEntity>(dbClient)
 }
 
-@Throughput(10, 10)
+@DynamoTable
 data class TestEntity(
     @PartitionKey val personId: UUID,
     @SortKey val updatedOn: LocalDate,
@@ -52,12 +52,12 @@ data class TestEntity(
     data class AliasProjection(@Alias("petNames") val names: List<String>, val missingField: String?)
 }
 
-@Throughput(10, 10)
+@DynamoTable(BillingMode(BillingType.PROVISIONED, 10, 10))
 data class Foo(@PartitionKey val id: UUID = UUID.randomUUID(), val name: String = "") {
     data class FooProjection(val name: String)
 }
 
-@Throughput(10, 10)
+@DynamoTable
 data class Bar(
     @PartitionKey val id: UUID = UUID.randomUUID(),
     @SortKey val updatedOn: LocalDate = LocalDate.now(),
@@ -67,7 +67,7 @@ data class Bar(
     val set: Set<String>? = null
 )
 
-@Throughput(10, 10)
+@DynamoTable
 data class MvaRate(
     @PartitionKey val security: String = "",
     @SortKey val date: LocalDate = LocalDate.now(),
@@ -80,7 +80,7 @@ enum class RateSource {
     CUSTOM
 }
 
-@Throughput(10, 10)
+@DynamoTable
 data class User(
     @PartitionKey val id: UUID,
     @GlobalSecondaryIndex(10, 10) val otherId: UUID,
