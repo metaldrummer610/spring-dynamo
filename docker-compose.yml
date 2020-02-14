@@ -6,14 +6,14 @@ services:
     ports:
       - 8000:8000
     networks:
-      - daap
+      - dynamo
 
   dynamo-admin:
     image: aaronshaf/dynamodb-admin
     ports:
       - 8001:8001
     networks:
-      - daap
+      - dynamo
     environment:
       - DYNAMO_ENDPOINT=http://dynamodb:8000
       - AWS_REGION=us-east-1
@@ -21,4 +21,4 @@ services:
       - AWS_SECRET_ACCESS_KEY=local
 
 networks:
-  daap: {}
+  dynamo: {}

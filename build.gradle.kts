@@ -7,27 +7,18 @@ val jupiterVersion: String by project
 val ktlintVersion: String by project
 val dynamoDbSDKVersion: String by project
 
-val nexusUrl: String by project
-val nexusUser: String by project
-val nexusPassword: String by project
-val patchVersion: String by project
-val baseVersion: String by project
-
 // IMPORTANT!
 // The Kotlin Version must be kept in sync both here and in the dependencyManagement section!
 plugins {
-    val kotlinVersion = "1.3.60"
+    val kotlinVersion = "1.3.61"
 
     kotlin("jvm") version kotlinVersion
     kotlin("plugin.spring") version kotlinVersion
-    kotlin("plugin.noarg") version kotlinVersion
     kotlin("kapt") version kotlinVersion
+    id("org.jetbrains.dokka") version "0.10.0"
     id("io.spring.dependency-management") version "1.0.8.RELEASE"
-    id("org.jlleitschuh.gradle.ktlint") version "9.1.1"
     id("com.github.nwillc.vplugin") version "3.0.1"
-    id("io.gitlab.arturbosch.detekt") version "1.1.1"
-    id("org.sonarqube") version "2.8"
-    id("com.avast.gradle.docker-compose") version "0.10.7"
+    id("com.jfrog.bintray") version "1.8.4"
     jacoco
     maven
     `maven-publish`
@@ -36,20 +27,18 @@ plugins {
 dependencyManagement {
     imports {
         mavenBom("org.springframework.boot:spring-boot-dependencies:2.2.0.RELEASE") {
-            bomProperty("kotlin.version", "1.3.60")
+            bomProperty("kotlin.version", "1.3.61")
         }
         mavenBom("software.amazon.awssdk:bom:2.5.29")
     }
 }
 
-group = "com.group1001"
-version = "$baseVersion.$patchVersion"
+group = "com.github.metaldrummer610"
+version = "0.1.0"
 
 repositories {
     jcenter()
-    maven(url = "http://nexus.jx.group1001.services/repository/group1001-maven/")
     maven(url = "https://oss.sonatype.org/content/repositories/snapshots")
-    mavenLocal()
 }
 
 apply(plugin = "io.spring.dependency-management")
@@ -79,9 +68,6 @@ dependencies {
 }
 
 tasks {
-    named("sonarqube") {
-        dependsOn("jacocoTestReport")
-    }
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         kotlinOptions.jvmTarget = JavaVersion.VERSION_1_8.toString()
         kotlinOptions.freeCompilerArgs += "-Xuse-experimental=kotlin.Experimental" // Have to have this compiler param because we are using experimental reflection apis
@@ -113,29 +99,25 @@ tasks {
     withType<Test> {
         useJUnitPlatform()
     }
-    withType<io.gitlab.arturbosch.detekt.Detekt> {
-        // Target version of the generated JVM bytecode. It is used for type resolution.
-        this.jvmTarget = "1.8"
+    withType<org.jetbrains.dokka.gradle.DokkaTask> {
+        outputFormat = "html"
+        outputDirectory = "$buildDir/dokka"
+        configuration {
+            includes = listOf("Module.md")
+        }
     }
-}
-
-ktlint {
-    ignoreFailures.set(true)
-    version.set(ktlintVersion)
-}
-
-detekt {
-    toolVersion = detektToolVersion
-    config = files("detekt-config.yml")
-}
-
-jacoco {
-    toolVersion = jacocoToolVersion
-}
-
-sonarqube {
-    properties {
-        property("sonar.projectName", "daap-dynamo")
+    withType<GenerateMavenPom> {
+        destination = file("$buildDir/libs/${project.name}-${project.version}.pom")
+    }
+    withType<com.jfrog.bintray.gradle.tasks.BintrayUploadTask> {
+        onlyIf {
+            if (project.version.toString().contains('-')) {
+                logger.lifecycle("Version v${project.version} is not a release version - skipping upload.")
+                false
+            } else {
+                true
+            }
+        }
     }
 }
 
@@ -144,24 +126,42 @@ val sourcesJar by tasks.registering(Jar::class) {
     from(sourceSets["main"].allSource)
 }
 
-noArg {
-    annotation("com.group1001.daap.dynamo.Throughput")
+val javadocJar by tasks.registering(Jar::class) {
+    dependsOn("dokka")
+    classifier = "javadoc"
+    from("$buildDir/dokka")
 }
 
 publishing {
-    repositories {
-        maven {
-            url = uri(nexusUrl)
-            credentials {
-                username = nexusUser
-                password = nexusPassword
-            }
-        }
-    }
     publications {
-        register("mavenJava", MavenPublication::class) {
+        create<MavenPublication>("maven") {
+            groupId = project.group.toString()
+            artifactId = project.name
+            version = project.version.toString()
+
             from(components["java"])
             artifact(sourcesJar.get())
+            artifact(javadocJar.get())
         }
     }
+}
+
+bintray {
+    user = System.getenv("BINTRAY_USER")
+    key = System.getenv("BINTRAY_API_KEY")
+    dryRun = false
+    publish = true
+    setPublications("maven")
+    pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
+        repo = "maven"
+        name = project.name
+        desc = "Spring Data inspired DynamoDB wrapper written in Kotlin"
+        websiteUrl = "https://github.com/metaldrummer610/${project.name}"
+        issueTrackerUrl = "https://github.com/metaldrummer610/${project.name}/issues"
+        vcsUrl = "https://github.com/metaldrummer610/${project.name}.git"
+        version.vcsTag = "v${project.version}"
+        setLicenses("ISC")
+        setLabels("kotlin", "dynamo", "spring")
+        publicDownloadNumbers = true
+    })
 }

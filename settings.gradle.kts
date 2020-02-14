@@ -1,2 +1,1 @@
-rootProject.name = "daap-dynamo"
-
+rootProject.name = "spring-dynamo"
