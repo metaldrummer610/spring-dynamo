@@ -10,14 +10,13 @@ val dynamoDbSDKVersion: String by project
 // IMPORTANT!
 // The Kotlin Version must be kept in sync both here and in the dependencyManagement section!
 plugins {
-    val kotlinVersion = "1.3.61"
+    val kotlinVersion = "1.3.71"
 
     kotlin("jvm") version kotlinVersion
     kotlin("plugin.spring") version kotlinVersion
     kotlin("kapt") version kotlinVersion
     id("org.jetbrains.dokka") version "0.10.0"
     id("io.spring.dependency-management") version "1.0.8.RELEASE"
-    id("com.github.nwillc.vplugin") version "3.0.1"
     id("com.jfrog.bintray") version "1.8.4"
     jacoco
     maven
@@ -26,8 +25,8 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:2.2.0.RELEASE") {
-            bomProperty("kotlin.version", "1.3.61")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:2.2.6.RELEASE") {
+            bomProperty("kotlin.version", "1.3.71")
         }
         mavenBom("software.amazon.awssdk:bom:2.5.29")
     }
