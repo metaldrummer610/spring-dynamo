@@ -1,17 +1,11 @@
 package com.group1001.daap.dynamo
 
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
-import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient
-import java.net.URI
+import org.springframework.boot.autoconfigure.SpringBootApplication
 import java.time.LocalDate
 import java.util.*
 
-val dbClient: DynamoDbClient = DynamoDbClient.builder()
-    .endpointOverride(URI("http://localhost:8000"))
-    .credentialsProvider { AwsBasicCredentials.create("local", "local") }
-    .region(Region.US_EAST_1)
-    .build()
+@SpringBootApplication
+class App
 
 fun testEntity(
     id: UUID = UUID.randomUUID(),
@@ -27,14 +21,6 @@ fun testEntity(
     nullable,
     mapping
 )
-
-fun setupDB() {
-    dbClient.listTables().tableNames().forEach {
-        dbClient.deleteTable { builder -> builder.tableName(it) }
-    }
-
-    TableBuilder.tableForEntity<TestEntity>(dbClient)
-}
 
 @DynamoTable
 data class TestEntity(

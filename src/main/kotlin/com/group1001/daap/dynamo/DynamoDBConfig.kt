@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
-import org.springframework.context.annotation.Profile
 import org.springframework.core.Ordered
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
@@ -20,7 +19,6 @@ import java.net.URI
 @EnableConfigurationProperties(DynamoProperties::class)
 @Import(EntityRegistry::class)
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
-@Profile("!test")
 class DynamoDBConfig(val properties: DynamoProperties) {
     @Bean
     @ConditionalOnMissingBean
@@ -29,9 +27,9 @@ class DynamoDBConfig(val properties: DynamoProperties) {
         val url = properties.endpointOverride
         return if (url != "") {
             DynamoDbClient.builder()
-                .endpointOverride(URI(url)) // These credentials are hard coded because that's what the docker-compose expects
+                .endpointOverride(URI(url))
                 .credentialsProvider {
-                    StaticCredentialsProvider.create(AwsBasicCredentials.create("local", "local")).resolveCredentials()
+                    StaticCredentialsProvider.create(AwsBasicCredentials.create(properties.accessKey, properties.secretKey)).resolveCredentials()
                 }
                 .region(Region.US_EAST_1)
                 .build()
@@ -55,6 +53,8 @@ class DynamoProperties(
      */
     val classPackage: String = "",
     val endpointOverride: String = "",
+    val accessKey: String = "",
+    val secretKey: String = "",
     val sse: ServerSideEncryption = ServerSideEncryption()
 ) {
     enum class TableCreationMode {
@@ -68,10 +68,3 @@ class DynamoProperties(
         val kmsMasterKey: String = ""
     )
 }
-
-@Configuration
-@Import(EntityRegistry::class)
-@EnableConfigurationProperties(DynamoProperties::class)
-@AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
-@Profile("test")
-class DynamoTestConfiguration

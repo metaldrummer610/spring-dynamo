@@ -1,16 +1,13 @@
 package com.group1001.daap.dynamo
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 import java.time.OffsetDateTime
 import java.util.*
 
-@SpringBootTest(classes = [DynamoDBConfig::class])
-@Import(TestConfiguration::class)
+@SpringBootTest
 class InheritanceTest {
     @Autowired
     lateinit var baseRepository: CompositeKeyRepository<Base, UUID, OffsetDateTime>
@@ -45,26 +42,29 @@ class InheritanceTest {
 
 @DynamoTable
 interface Base {
-    @PartitionKey val id: UUID
-    @SortKey val asOf: OffsetDateTime
+    @PartitionKey
+    val id: UUID
+
+    @SortKey
+    val asOf: OffsetDateTime
 }
 
 data class Child(
     val foo: String,
     override val id: UUID,
     override val asOf: OffsetDateTime
-): Base
+) : Base
 
 data class OtherChild(
     val bar: String,
     override val id: UUID,
     override val asOf: OffsetDateTime
-): Base
+) : Base
 
 @DynamoTable
 open class Animal(
     @PartitionKey val name: String
 )
 
-class Cat(val legs: Int, name: String): Animal(name)
-class Dog(val bark: Boolean, name: String): Animal(name)
+class Cat(val legs: Int, name: String) : Animal(name)
+class Dog(val bark: Boolean, name: String) : Animal(name)

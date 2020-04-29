@@ -9,7 +9,6 @@ cache:
 jdk:
   - openjdk8
   - openjdk11
-  - openjdk14
 script:
   - "./gradlew clean build"
   - "./gradlew bintrayUpload"

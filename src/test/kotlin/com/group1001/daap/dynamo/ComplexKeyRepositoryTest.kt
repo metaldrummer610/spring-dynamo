@@ -1,19 +1,16 @@
 package com.group1001.daap.dynamo
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
 import java.time.LocalDate
 import java.util.*
 
-class DefaultSimpleKeyRepositoryTest {
-    private val repo = DefaultCompositeKeyRepository<TestEntity, UUID, LocalDate>(dbClient, TestEntity::class)
-
-    @BeforeEach
-    fun before() {
-        setupDB()
-    }
+@SpringBootTest
+class ComplexKeyRepositoryTest {
+    @Autowired
+    lateinit var repo: CompositeKeyRepository<TestEntity, UUID, LocalDate>
 
     @Test
     fun `should save an entity`() {

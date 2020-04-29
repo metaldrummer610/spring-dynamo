@@ -3,26 +3,18 @@ package com.group1001.daap.dynamo
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Import
-import org.springframework.context.annotation.Primary
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
-import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import software.amazon.awssdk.services.dynamodb.model.Select
-import java.net.URI
 import java.time.LocalDate
 import java.util.*
 
-@SpringBootTest(classes = [DynamoDBConfig::class])
-@Import(TestConfiguration::class)
+@SpringBootTest
 class SpringConfigurationTest {
     @Autowired
     lateinit var testRepository: CompositeKeyRepository<TestEntity, UUID, LocalDate>
@@ -264,16 +256,6 @@ class BarRepository(dynamoClient: DynamoDbClient) : DefaultCompositeKeyRepositor
 
 @Configuration
 class TestConfiguration {
-    @Bean
-    @Primary
-    fun dynamoClient(): DynamoDbClient = DynamoDbClient.builder()
-        .endpointOverride(URI("http://localhost:8000"))
-        .credentialsProvider {
-            StaticCredentialsProvider.create(AwsBasicCredentials.create("local", "local")).resolveCredentials()
-        }
-        .region(Region.US_EAST_1)
-        .build()
-
     @Bean
     fun barRepository(dynamoClient: DynamoDbClient) = BarRepository(dynamoClient)
 }

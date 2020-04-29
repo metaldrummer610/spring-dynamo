@@ -8,8 +8,6 @@ import org.springframework.beans.factory.BeanFactoryAware
 import org.springframework.beans.factory.config.RuntimeBeanReference
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
 import org.springframework.beans.factory.support.RootBeanDefinition
-import org.springframework.context.ApplicationContext
-import org.springframework.context.ApplicationContextAware
 import org.springframework.context.EnvironmentAware
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar
 import org.springframework.core.ResolvableType
@@ -85,6 +83,7 @@ class EntityRegistry : ImportBeanDefinitionRegistrar, BeanFactoryAware, Environm
     override fun setBeanFactory(beanFactory: BeanFactory) {
         this.beanFactory = beanFactory
     }
+
     companion object {
         val logger: Logger = LoggerFactory.getLogger(TableCreationService::class.java)
 

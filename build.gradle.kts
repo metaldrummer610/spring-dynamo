@@ -16,7 +16,7 @@ plugins {
     kotlin("plugin.spring") version kotlinVersion
     kotlin("kapt") version kotlinVersion
     id("org.jetbrains.dokka") version "0.10.0"
-    id("io.spring.dependency-management") version "1.0.8.RELEASE"
+    id("io.spring.dependency-management") version "1.0.9.RELEASE"
     id("com.jfrog.bintray") version "1.8.4"
     jacoco
     maven
@@ -36,8 +36,10 @@ group = "com.github.metaldrummer610"
 version = "0.1.0"
 
 repositories {
+    mavenCentral()
     jcenter()
-    maven(url = "https://oss.sonatype.org/content/repositories/snapshots")
+    maven("http://oss.jfrog.org/artifactory/oss-snapshot-local/")
+    mavenLocal()
 }
 
 apply(plugin = "io.spring.dependency-management")
@@ -54,7 +56,10 @@ dependencies {
 
     listOf(
         "org.junit.jupiter:junit-jupiter:$jupiterVersion",
-        "org.springframework.boot:spring-boot-starter-test"
+        "org.springframework.boot:spring-boot-starter-test",
+        "com.playtika.testcontainers:embedded-dynamodb:1.48",
+        "org.springframework.cloud:spring-cloud-starter:2.2.2.RELEASE",
+        "com.playtika.testcontainers:testcontainers-spring-boot:1.48"
     ).forEach { testImplementation(it) }
 
     listOf(

@@ -1,6 +1,6 @@
 package com.group1001.daap.dynamo
 
-import org.awaitility.Awaitility.*
+import org.awaitility.Awaitility.await
 import org.reflections.Reflections
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
