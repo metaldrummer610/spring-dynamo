@@ -1,4 +1,4 @@
-package com.group1001.daap.dynamo
+package com.github.metaldrummer610.springdynamo
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions
@@ -194,7 +194,10 @@ class SpringConfigurationTest {
 
     @Test
     fun `should be able to ask for a projection of an entity with both a partition and sort key`() {
-        val entity = testEntity().copy(petNames = listOf("foo", "bar"), addresses = listOf(TestEntity.TestAddress("132"), TestEntity.TestAddress("4523")))
+        val entity = testEntity().copy(petNames = listOf("foo", "bar"), addresses = listOf(
+            TestEntity.TestAddress("132"),
+            TestEntity.TestAddress("4523")
+        ))
         testRepository.save(entity)
         val expected = TestEntity.PetAddressProjection(entity.petNames, entity.addresses)
 
@@ -231,8 +234,22 @@ class SpringConfigurationTest {
         val thirdId = UUID.randomUUID()
         userRepository.save(User(id, otherId, thirdId, "asdf"))
 
-        assertThat(userRepository.findByGlobalSecondaryIndex("otherId", otherId)).hasSize(1).first().isEqualTo(User(id, otherId, thirdId, "asdf"))
-        assertThat(userRepository.findByGlobalSecondaryIndex("thirdId", thirdId, "asdf")).hasSize(1).first().isEqualTo(User(id, otherId, thirdId, "asdf"))
+        assertThat(userRepository.findByGlobalSecondaryIndex("otherId", otherId)).hasSize(1).first().isEqualTo(
+            User(
+                id,
+                otherId,
+                thirdId,
+                "asdf"
+            )
+        )
+        assertThat(userRepository.findByGlobalSecondaryIndex("thirdId", thirdId, "asdf")).hasSize(1).first().isEqualTo(
+            User(
+                id,
+                otherId,
+                thirdId,
+                "asdf"
+            )
+        )
     }
 }
 

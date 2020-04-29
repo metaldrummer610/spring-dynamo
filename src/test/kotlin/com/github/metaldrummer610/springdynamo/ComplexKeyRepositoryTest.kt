@@ -1,4 +1,4 @@
-package com.group1001.daap.dynamo
+package com.github.metaldrummer610.springdynamo
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -38,7 +38,12 @@ class ComplexKeyRepositoryTest {
 
     @Test
     fun `should save an entity with a map and find it`() {
-        val entity = testEntity(mapping = mapOf("foo" to TestEntity.TestAddress("123"), "bar" to TestEntity.TestAddress("234")))
+        val entity = testEntity(
+            mapping = mapOf(
+                "foo" to TestEntity.TestAddress("123"),
+                "bar" to TestEntity.TestAddress("234")
+            )
+        )
 
         repo.save(entity)
         val foundEntity = repo.findById(entity.personId, entity.updatedOn)

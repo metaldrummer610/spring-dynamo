@@ -1,4 +1,4 @@
-package com.group1001.daap.dynamo
+package com.github.metaldrummer610.springdynamo
 
 import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue

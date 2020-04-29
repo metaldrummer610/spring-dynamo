@@ -1,4 +1,4 @@
-package com.group1001.daap.dynamo
+package com.github.metaldrummer610.springdynamo
 
 import org.awaitility.Awaitility.await
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
@@ -24,7 +24,8 @@ import software.amazon.awssdk.services.dynamodb.model.LocalSecondaryIndex as Aws
  */
 @UseExperimental(ExperimentalStdlibApi::class)
 object TableBuilder {
-    inline fun <reified T : Any> tableForEntity(client: DynamoDbClient) = tableForEntity(client, DynamoProperties(), T::class)
+    inline fun <reified T : Any> tableForEntity(client: DynamoDbClient) =
+        tableForEntity(client, DynamoProperties(), T::class)
 
     fun <T : Any> tableForEntity(client: DynamoDbClient, dynamoProperties: DynamoProperties, kClass: KClass<T>) {
         val table: DynamoTable = requireNotNull(kClass.findAnnotation()) { "Dynamo Classes require a DynamoTable Annotation" }
@@ -47,7 +48,13 @@ object TableBuilder {
             .billingMode(determineBillingMode(table.billingMode))
             .keySchema(makePrimaryKey(hashKeyProperty.name, rangeKeyProperty?.name))
             .attributeDefinitions(
-                makeAttributes(listOfNotNull(hashKeyProperty, rangeKeyProperty, ttlProperty) + secondaryIndexes + globalIndexes + globalIndexSortKeys)
+                makeAttributes(
+                    listOfNotNull(
+                        hashKeyProperty,
+                        rangeKeyProperty,
+                        ttlProperty
+                    ) + secondaryIndexes + globalIndexes + globalIndexSortKeys
+                )
             )
 
         if (table.billingMode.type == BillingType.PROVISIONED) {

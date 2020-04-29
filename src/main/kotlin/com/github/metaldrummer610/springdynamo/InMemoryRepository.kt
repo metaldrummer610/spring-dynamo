@@ -1,4 +1,4 @@
-package com.group1001.daap.dynamo
+package com.github.metaldrummer610.springdynamo
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger

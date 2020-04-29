@@ -1,4 +1,4 @@
-package com.group1001.daap.dynamo
+package com.github.metaldrummer610.springdynamo
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import java.time.LocalDate
@@ -38,7 +38,13 @@ data class TestEntity(
     data class AliasProjection(@Alias("petNames") val names: List<String>, val missingField: String?)
 }
 
-@DynamoTable(BillingMode(BillingType.PROVISIONED, 10, 10))
+@DynamoTable(
+    BillingMode(
+        BillingType.PROVISIONED,
+        10,
+        10
+    )
+)
 data class Foo(@PartitionKey val id: UUID = UUID.randomUUID(), val name: String = "") {
     data class FooProjection(val name: String)
 }

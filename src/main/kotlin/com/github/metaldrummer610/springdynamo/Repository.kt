@@ -1,4 +1,4 @@
-package com.group1001.daap.dynamo
+package com.github.metaldrummer610.springdynamo
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
@@ -122,7 +122,8 @@ interface CompositeKeyRepository<T, P, S> : SimpleKeyRepository<T, P> {
  */
 @UseExperimental(ExperimentalStdlibApi::class)
 @Suppress("UNCHECKED_CAST", "ReturnCount", "ComplexMethod", "TooManyFunctions")
-open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClient, protected val klass: KClass<T>) : SimpleKeyRepository<T, P> {
+open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClient, protected val klass: KClass<T>) :
+    SimpleKeyRepository<T, P> {
     // Precompute the hash/range keys so we don't have to constantly find them at runtime
     protected val partitionKeyProperty: KProperty1<T, *> = klass.memberProperties.first { it.hasAnnotation<PartitionKey>() }
 
@@ -423,7 +424,8 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
 
 @UseExperimental(ExperimentalStdlibApi::class)
 @Suppress("UNCHECKED_CAST")
-open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klass: KClass<T>) : DefaultSimpleKeyRepository<T, P>(db, klass), CompositeKeyRepository<T, P, S> {
+open class DefaultCompositeKeyRepository<T : Any, P, S>(db: DynamoDbClient, klass: KClass<T>) : DefaultSimpleKeyRepository<T, P>(db, klass),
+    CompositeKeyRepository<T, P, S> {
     private val sortKeyProperty: KProperty1<T, *> = klass.memberProperties.first { it.hasAnnotation<SortKey>() }
 
     override fun findById(partition: P): T? {

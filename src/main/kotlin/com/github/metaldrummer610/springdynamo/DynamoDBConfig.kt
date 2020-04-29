@@ -1,4 +1,4 @@
-package com.group1001.daap.dynamo
+package com.github.metaldrummer610.springdynamo
 
 import org.springframework.boot.autoconfigure.AutoConfigureOrder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -44,7 +44,7 @@ class DynamoDBConfig(val properties: DynamoProperties) {
 }
 
 @ConstructorBinding
-@ConfigurationProperties(prefix = "com.group1001.dynamo")
+@ConfigurationProperties(prefix = "com.github.metaldrummer610.springdynamo")
 class DynamoProperties(
     val tableCreationMode: TableCreationMode = TableCreationMode.NONE,
 

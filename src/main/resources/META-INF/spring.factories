@@ -1,2 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  com.group1001.daap.dynamo.DynamoDBConfig
+  com.github.metaldrummer610.springdynamo.DynamoDBConfig

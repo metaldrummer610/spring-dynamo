@@ -1,4 +1,4 @@
-package com.group1001.daap.dynamo
+package com.github.metaldrummer610.springdynamo
 
 import org.awaitility.Awaitility.await
 import org.reflections.Reflections

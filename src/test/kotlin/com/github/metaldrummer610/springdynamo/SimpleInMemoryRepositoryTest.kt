@@ -1,4 +1,4 @@
-package com.group1001.daap.dynamo
+package com.github.metaldrummer610.springdynamo
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -28,6 +28,10 @@ class SimpleInMemoryRepositoryTest {
         val foo = Foo()
 
         repo.save(foo)
-        assertThat(repo.asProjection(foo.id, Foo.FooProjection::class)).isEqualToComparingFieldByField(Foo.FooProjection(foo.name))
+        assertThat(repo.asProjection(foo.id, Foo.FooProjection::class)).isEqualToComparingFieldByField(
+            Foo.FooProjection(
+                foo.name
+            )
+        )
     }
 }
