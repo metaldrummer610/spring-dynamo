@@ -10,5 +10,15 @@ jdk:
   - openjdk8
   - openjdk11
 script:
-  - "./gradlew clean build"
-  - "./gradlew bintrayUpload"
+  - "./gradlew --no-daemon clean build"
+
+deploy:
+  provider: script
+  script: "./gradlew --no-daemon bintrayUpload"
+  on:
+    all_branches: false
+    branch: master
+    jdk: openjdk8
+
+services:
+  - docker
