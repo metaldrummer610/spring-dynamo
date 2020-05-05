@@ -29,9 +29,9 @@ class EntityRegistry : ImportBeanDefinitionRegistrar, BeanFactoryAware, Environm
         val properties = beanFactory.getBean(DynamoProperties::class.java)
         val testMode = environment.acceptsProfiles(Profiles.of("test"))
 
-        // Iterate over all the Throughput annotated classes in the given paths
-        // and register a SimpleDynamoRepository instance for them
-        Reflections(properties.classPackage)
+        // Iterate over all the DynamoTable annotated classes in the given paths
+        // and register a SimpleKeyRepository or CompositeKeyRepository instance for them
+        Reflections(properties.classPackage, "com.github.metaldrummer610.springdynamo")
             .getTypesAnnotatedWith(DynamoTable::class.java, true)
             .filterNot { registry.isBeanNameInUse(beanName(it)) }
             .forEach {
