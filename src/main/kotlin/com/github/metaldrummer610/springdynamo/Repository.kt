@@ -364,8 +364,7 @@ open class DefaultSimpleKeyRepository<T : Any, P>(protected val db: DynamoDbClie
         }
 
         if (prop.isEnum) {
-            prop as Class<Enum<*>>
-            return prop.enumConstants.firstOrNull { it.name == attr.s() }
+            return (prop as Class<Enum<*>>).enumConstants.firstOrNull { it.name == attr.s() }
         }
 
         // Thanks Amazon... for not supporting a damn empty string as a value since 2012

@@ -68,7 +68,7 @@ class EntityRegistry : ImportBeanDefinitionRegistrar, BeanFactoryAware, Environm
                 beanDefinition.setTargetType(genericType)
 
                 registry.registerBeanDefinition(beanName(it), beanDefinition)
-                logger.debug("Registered ${it.simpleName} as $beanDefinition")
+                logger.debug("Registered ${beanName(it)} as $beanDefinition")
             }
     }
 
@@ -86,6 +86,5 @@ class EntityRegistry : ImportBeanDefinitionRegistrar, BeanFactoryAware, Environm
 
     companion object {
         val logger: Logger = LoggerFactory.getLogger(TableCreationService::class.java)
-
     }
 }

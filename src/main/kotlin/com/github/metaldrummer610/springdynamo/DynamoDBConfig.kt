@@ -1,5 +1,6 @@
 package com.github.metaldrummer610.springdynamo
 
+import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfigureOrder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -41,6 +42,9 @@ class DynamoDBConfig(val properties: DynamoProperties) {
     @Bean
     fun tableCreationService(properties: DynamoProperties, client: DynamoDbClient) =
         TableCreationService(properties, client)
+
+    @Bean
+    fun dataSeeder(properties: DynamoProperties, beanFactory: ListableBeanFactory): DataSeeder = DataSeeder(properties, beanFactory)
 }
 
 @ConstructorBinding
