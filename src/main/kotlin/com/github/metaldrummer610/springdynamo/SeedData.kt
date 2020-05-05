@@ -100,13 +100,13 @@ interface SeedData {
 /**
  * Internal typealias used with the [Seed] table
  */
-internal typealias SeedRepository = CompositeKeyRepository<Seed, String, Int>
+typealias SeedRepository = CompositeKeyRepository<Seed, String, Int>
 
 /**
  * Metadata table used to store what [SeedData] has been run against what tables
  */
 @DynamoTable
-internal data class Seed(
+data class Seed(
     @PartitionKey val table: String,
     @SortKey val version: Int,
     val appliedOn: LocalDateTime = LocalDateTime.now()
